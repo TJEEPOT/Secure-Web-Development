@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>Search results</h1>
+    <p>Results for: {{query|safe}}</p>
+
+    <ul>
+        {% for user in users %}
+        <li>
+            <p>{{user.username|safe}}</p>
+        </li>
+        {% endfor %}
+    </ul>
+{% endblock %}
