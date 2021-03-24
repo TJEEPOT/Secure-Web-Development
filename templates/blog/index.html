@@ -4,8 +4,10 @@
         {% for post in posts %}
         <li>
             <h2>{{post.title|safe}}</h2>
-            <p class="subtext">{{post.date}}</p>
-            <p>{{post.content|safe}}</p>
+            <p class="subtext">By <a href="/{{post.username}}/">{{post.username|safe}}</a> - {{post.date}}</p>
+            <p>
+            {{post.content|safe}}
+            </p>
         </li>
         {% endfor %}
     </ul>
