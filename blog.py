@@ -9,8 +9,9 @@ History : 25/03/2021 - v1.0 - Load basic project file.
 """
 
 import datetime
-import sqlite3
 from functools import wraps
+import auth
+import db
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
@@ -21,35 +22,10 @@ __version__ = "1.0"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+from db import get_posts, add_post, get_email, get_users
 
 app = Flask(__name__)
 app.secret_key = 'thisisabadsecretkey'  # KEK
-
-DATABASE = 'database.sqlite'
-
-
-# TODO: This is really badly written, will need rewriting and splitting into multiple functions for different
-#  accounts. Also needs moving to db.py (issue 15). -MS
-def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
-
-    def make_dicts(cursor, row):
-        return dict((cursor.description[idx][0], value)
-                    for idx, value in enumerate(row))
-
-    db.row_factory = make_dicts
-    return db
-
-
-# TODO: Move this into db.py (issue 15) -MS
-# TODO: needs a rewrite or reimplementation for security. (issue 27) -MS
-def query_db(query, args=(), one=False):
-    cur = get_db().execute(query, args)
-    rv = cur.fetchall()
-    cur.close()
-    return (rv[0] if rv else None) if one else rv
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
@@ -79,10 +55,7 @@ def close_connection(exception):
 @app.route("/")
 @std_context
 def index():
-    # TODO: No (issue 27) -MS
-    # TODO: Move it to db.py (issue 15) -MS
-    posts = query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.name,users.username FROM posts '
-                     'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')
+    posts = db.get_all_posts()
 
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
@@ -97,31 +70,23 @@ def index():
 @app.route("/<uname>/")
 @std_context
 def users_posts(uname=None):
-    # TODO: Move it to db.py (Issue 15) -MS
-    # TODO: Rewrite (Issue 27) -MS
-    cid = query_db('SELECT userid FROM users WHERE username="%s"' % uname)
+    cid = db.get_user(uname)
     if len(cid) < 1:
-        return 'No such user'
+        return 'User page not found.'
 
-    # TODO: Move it to db.py (Issue 15) -MS
-    # TODO: Rewrite (Issue 27) -MS
     cid = cid[0]['userid']
-    query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % cid
-
-    context = request.context
+    query = get_posts(cid)
 
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
 
-    query_db(query)
-    context['posts'] = map(fix, query_db(query))
+    # db.query_db(query)
+    context = request.context
+    context['posts'] = map(fix, db.query_db(query))
     return render_template('user_posts.html', **context)
 
 
-# TODO: Move most of this to auth.py (Issue 10) -MS
-# TODO: Move the rest to db.py (Issue 15) -MS
-# TODO: Rewrite (Issue 27) -MS
 @app.route("/login/", methods=['GET', 'POST'])
 @std_context
 def login():
@@ -132,31 +97,17 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('auth/login.html', **context)
 
-    query = "SELECT userid FROM users WHERE username='%s'" % username
-    account = query_db(query)
-    user_exists = len(account) > 0
-
-    query = "SELECT userid FROM users WHERE username='%s' AND password='%s'" % (username, password)
-    print(query)
-    account2 = query_db(query)
-    print(account)
-    pass_match = len(account2) > 0
-
-    #TODO: Rewrite this to ensure timing and message returned are the same (Issue 12) -MS
-    if user_exists:
-        if pass_match:
-            session['userid'] = account[0]['userid']
-            session['username'] = username
-            return redirect(url_for('index'))
-        else:
-            # Return wrong password
-            return redirect(url_for('login_fail', error='Wrong password'))
+    account = auth.authenticate_user(username, password)
+    if account is not None:
+        session['userid'] = account[0]['userid']
+        session['username'] = username
+        return redirect(url_for('index'))
     else:
-        # Return no such user
-        return redirect(url_for('login_fail', error='No such user'))
+        # Return incorrect details
+        return redirect(url_for('login_fail', error='Incorrect Login Details'))
 
 
-# Not sure if this code needs moving out anywhere since I think it's a flask thing. -MS
+# I don't think this code needs moving anywhere since I think it's a flask thing. -MS
 @app.route("/loginfail/")
 @std_context
 def login_fail():
@@ -173,7 +124,6 @@ def logout():
     return redirect('/')
 
 
-# TODO: Move to db.py (Issue 15) -MS
 # TODO: Rewrite db stuff (Issue 27) -MS
 @app.route("/post/", methods=['GET', 'POST'])
 @std_context
@@ -192,17 +142,13 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
 
-    query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')" % (
-        userid, date, title, content)
-    query_db(query)
-
-    get_db().commit()
-
+    query = add_post(content, date, title, userid)
+    db.query_db(query)
+    db.get_db().commit()
     return redirect('/')
 
 
-# TODO: Move to db.py (Issue 15) -MS
-# TODO: Rewrite db stuff (Issue 27) -MS
+# TODO: Rewrite to hide if account exists or not (Issue 25) -MS
 @app.route("/reset/", methods=['GET', 'POST'])
 @std_context
 def reset():
@@ -212,8 +158,8 @@ def reset():
     if email == '':
         return render_template('auth/reset_request.html')
 
-    query = "SELECT email FROM users WHERE email='%s'" % email
-    exists = query_db(query)
+    query = get_email(email)
+    exists = db.query_db(query)
     if len(exists) < 1:
         return render_template('auth/no_email.html', **context)
     else:
@@ -221,7 +167,6 @@ def reset():
         return render_template('auth/sent_reset.html', **context)
 
 
-# TODO: Move to db.py (Issue 15) -MS
 # TODO: Rewrite db stuff (Issue 27) -MS
 @app.route("/search/")
 @std_context
@@ -229,8 +174,8 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    query = "SELECT username FROM users WHERE username LIKE '%%%s%%';" % search
-    users = query_db(query)
+    query = get_users(search)
+    users = db.query_db(query)
     # for user in users:
     context['users'] = users
     context['query'] = search
