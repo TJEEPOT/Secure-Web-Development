@@ -28,7 +28,8 @@ app.secret_key = 'thisisabadsecretkey'  # KEK
 DATABASE = 'database.sqlite'
 
 
-# we need multiples of this for the different accounts, might split them into another py file.
+# TODO: This is really badly written, will need rewriting and splitting into multiple functions for different
+#  accounts. Also needs moving to db.py (issue 15). -MS
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -42,6 +43,8 @@ def get_db():
     return db
 
 
+# TODO: Move this into db.py (issue 15) -MS
+# TODO: needs a rewrite or reimplementation for security. (issue 27) -MS
 def query_db(query, args=(), one=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
@@ -49,6 +52,7 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
+# TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
 def std_context(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -64,6 +68,7 @@ def std_context(f):
     return wrapper
 
 
+# I believe this remains here for Flask reasons -MS
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
@@ -74,8 +79,10 @@ def close_connection(exception):
 @app.route("/")
 @std_context
 def index():
+    # TODO: No (issue 27) -MS
+    # TODO: Move it to db.py (issue 15) -MS
     posts = query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.name,users.username FROM posts '
-                     'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')  # Oh. Oh no.
+                     'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')
 
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
@@ -90,10 +97,14 @@ def index():
 @app.route("/<uname>/")
 @std_context
 def users_posts(uname=None):
+    # TODO: Move it to db.py (Issue 15) -MS
+    # TODO: Rewrite (Issue 27) -MS
     cid = query_db('SELECT userid FROM users WHERE username="%s"' % uname)
     if len(cid) < 1:
         return 'No such user'
 
+    # TODO: Move it to db.py (Issue 15) -MS
+    # TODO: Rewrite (Issue 27) -MS
     cid = cid[0]['userid']
     query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % cid
 
@@ -108,6 +119,9 @@ def users_posts(uname=None):
     return render_template('user_posts.html', **context)
 
 
+# TODO: Move most of this to auth.py (Issue 10) -MS
+# TODO: Move the rest to db.py (Issue 15) -MS
+# TODO: Rewrite (Issue 27) -MS
 @app.route("/login/", methods=['GET', 'POST'])
 @std_context
 def login():
@@ -128,6 +142,7 @@ def login():
     print(account)
     pass_match = len(account2) > 0
 
+    #TODO: Rewrite this to ensure timing and message returned are the same (Issue 12) -MS
     if user_exists:
         if pass_match:
             session['userid'] = account[0]['userid']
@@ -141,6 +156,7 @@ def login():
         return redirect(url_for('login_fail', error='No such user'))
 
 
+# Not sure if this code needs moving out anywhere since I think it's a flask thing. -MS
 @app.route("/loginfail/")
 @std_context
 def login_fail():
@@ -149,6 +165,7 @@ def login_fail():
     return render_template('auth/login_fail.html', **context)
 
 
+# TODO: Review this when doing sessions (Issue 28) -MS
 @app.route("/logout/")
 def logout():
     session.pop('userid', None)
@@ -156,6 +173,8 @@ def logout():
     return redirect('/')
 
 
+# TODO: Move to db.py (Issue 15) -MS
+# TODO: Rewrite db stuff (Issue 27) -MS
 @app.route("/post/", methods=['GET', 'POST'])
 @std_context
 def new_post():
@@ -182,6 +201,8 @@ def new_post():
     return redirect('/')
 
 
+# TODO: Move to db.py (Issue 15) -MS
+# TODO: Rewrite db stuff (Issue 27) -MS
 @app.route("/reset/", methods=['GET', 'POST'])
 @std_context
 def reset():
@@ -200,6 +221,8 @@ def reset():
         return render_template('auth/sent_reset.html', **context)
 
 
+# TODO: Move to db.py (Issue 15) -MS
+# TODO: Rewrite db stuff (Issue 27) -MS
 @app.route("/search/")
 @std_context
 def search_page():
@@ -214,7 +237,7 @@ def search_page():
     return render_template('search_results.html', **context)
 
 
-# yeah, might want to remove this lol
+# TODO: might want to remove this (Issue 4) -MS
 @app.route("/resetdb/<token>")
 def reset_db(token=None):
     if token == 'secret42':
