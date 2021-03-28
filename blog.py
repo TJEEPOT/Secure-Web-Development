@@ -1,8 +1,26 @@
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+""" Functions for the Flask server
+File    : blog.py
+Date    : Thursday 25 March 2021
+Desc.   : Handles functions for starting up the flask server and site functionality
+History : 25/03/2021 - v1.0 - Load basic project file.
+"""
+
 import datetime
 import sqlite3
 from functools import wraps
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
+
+__author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
+__copyright__ = "Copyright 2021, CMP-UG4"
+__credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
+__version__ = "1.0"
+__email__ = "gny17hvu@uea.ac.uk"
+__status__ = "Development"  # or "Production"
+
 
 app = Flask(__name__)
 app.secret_key = 'thisisabadsecretkey'  # KEK
@@ -21,7 +39,6 @@ def get_db():
                     for idx, value in enumerate(row))
 
     db.row_factory = make_dicts
-
     return db
 
 
@@ -88,7 +105,7 @@ def users_posts(uname=None):
 
     query_db(query)
     context['posts'] = map(fix, query_db(query))
-    return render_template('templates/user_posts.html', **context)
+    return render_template('user_posts.html', **context)
 
 
 @app.route("/login/", methods=['GET', 'POST'])
