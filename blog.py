@@ -81,7 +81,6 @@ def users_posts(uname=None):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
 
-    # db.query_db(query)
     context = request.context
     context['posts'] = map(fix, db.query_db(query))
     return render_template('user_posts.html', **context)
@@ -168,6 +167,7 @@ def reset():
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
+# might want to have these link to the user pages too?
 @app.route("/search/")
 @std_context
 def search_page():
