@@ -8,13 +8,6 @@ Desc.   : Handles functions for starting up the flask server and site functional
 History : 25/03/2021 - v1.0 - Load basic project file.
 """
 
-import datetime
-from functools import wraps
-import auth
-import db
-
-from flask import Flask, g, render_template, redirect, request, session, url_for
-
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
@@ -22,7 +15,12 @@ __version__ = "1.0"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
-from db import get_posts, add_post, get_email, get_users
+import datetime
+from functools import wraps
+import auth
+import db
+
+from flask import Flask, g, render_template, redirect, request, session, url_for
 
 app = Flask(__name__)
 app.secret_key = 'thisisabadsecretkey'  # KEK
@@ -47,9 +45,9 @@ def std_context(f):
 # I believe this remains here for Flask reasons -MS
 @app.teardown_appcontext
 def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
+    database = getattr(g, '_database', None)
+    if database is not None:
+        database.close()
 
 
 @app.route("/")
@@ -75,7 +73,7 @@ def users_posts(uname=None):
         return 'User page not found.'
 
     cid = cid[0]['userid']
-    query = get_posts(cid)
+    query = db.get_posts(cid)
 
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
@@ -141,7 +139,7 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
 
-    query = add_post(content, date, title, userid)
+    query = db.add_post(content, date, title, userid)
     db.query_db(query)
     db.get_db().commit()
     return redirect('/')
@@ -157,7 +155,7 @@ def reset():
     if email == '':
         return render_template('auth/reset_request.html')
 
-    query = get_email(email)
+    query = db.get_email(email)
     exists = db.query_db(query)
     if len(exists) < 1:
         return render_template('auth/no_email.html', **context)
@@ -174,7 +172,7 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    query = get_users(search)
+    query = db.get_users(search)
     users = db.query_db(query)
     # for user in users:
     context['users'] = users
