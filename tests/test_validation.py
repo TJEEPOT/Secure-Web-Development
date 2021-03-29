@@ -86,11 +86,28 @@ class TestValidation(unittest.TestCase):
         max_length = 10000
         overly_long_script = ""
         for x in range(max_length + 1):
-            overly_long_script += str(x)
+            overly_long_script += "x"
         self.assertIsNone(v.validate_post(overly_long_script))
 
-    def test_post_xss_diffent(self):
+    def test_post_xss(self):
         self.assertNotEqual('<script>alert("xss");</script>', v.validate_post('<script>alert("xss");</script>'))
+
+    def test_post_xss_character_encoding(self):
+        self.assertEqual("&#38;&#60;&#62;&#34;&#39;&#37;&#42;&#43;&#44;&#45;&#47;&#59;&#61;&#94;&#124;",
+                         v.validate_post("&<>\"'%*+,-/;=^|"))
+
+    # search tests
+
+    def test_search_xss_character_encoding(self):
+        self.assertEqual("&#38;&#60;&#62;&#34;&#39;&#37;&#42;&#43;&#44;&#45;&#47;&#59;&#61;&#94;&#124;",
+                         v.validate_search("&<>\"'%*+,-/;=^|"))
+
+    def test_search_length_max(self):
+        max_length = 100
+        over_max_characters = ""
+        for x in range(max_length + 1):
+            over_max_characters += "x"
+        self.assertIsNone(v.validate_search(over_max_characters))
 
 
 if __name__ == '__main__':
