@@ -8,18 +8,18 @@ Desc.   : Handles functions for starting up the flask server and site functional
 History : 25/03/2021 - v1.0 - Load basic project file.
 """
 
-import datetime
-import sqlite3
-from functools import wraps
-
-from flask import Flask, g, render_template, redirect, request, session, url_for
-
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
 __version__ = "1.0"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
+
+import datetime
+import sqlite3
+from functools import wraps
+
+from flask import Flask, g, render_template, redirect, request, session, url_for
 
 
 app = Flask(__name__)
