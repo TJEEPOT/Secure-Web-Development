@@ -7,7 +7,7 @@ Date    : Thursday 25 March 2021
 Desc.   : Handles functions for handling authorisation.
 History : 25/03/2021 - v1.0 - Load basic project file.
           31/03/2021 - v1.1 - Completed MD2 and UD4 hash implementations with helper functions and timer test harness
-          31/03/2021 - v1.2 -
+          31/03/2021 - v1.2 - Added function to generate salts
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
