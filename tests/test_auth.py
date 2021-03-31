@@ -25,6 +25,9 @@ class MyTestCase(unittest.TestCase):
                          "b2c680b52ee42d744e1c869bf2cb55602033634917c963e9afa58f7aee37c98e",
                          auth.ug4_hash("0123456789ThisIsAVeryLongPasswordDesignedToExtendBeyondABlock#!£$%^&*(){}"))
 
+    def test_generate_salt(self):
+        self.assertIsNotNone(auth.generate_salt())
+
 
 if __name__ == '__main__':
     unittest.main()
