@@ -257,14 +257,14 @@ def _gen_s_box():
 
 
 if __name__ == "__main__":
-    # start = time.perf_counter()
-    # print(md2_hash("password"))
-    # end = time.perf_counter()
-    # print("md2 time taken: ", end - start)
-    # print()
-    #
-    # start = time.perf_counter()
-    # print(ug4_hash("password"))
-    # end = time.perf_counter()
-    # print("ug4 time taken: ", end - start)
-    print(generate_salt())
+    start = time.perf_counter()
+    print(md2_hash("password"))
+    end = time.perf_counter()
+    print("md2 time taken: ", end - start)
+    print()
+
+    start = time.perf_counter()
+    print(ug4_hash("password"))
+    end = time.perf_counter()
+    print("ug4 time taken: ", end - start)
+
