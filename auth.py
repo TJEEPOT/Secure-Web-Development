@@ -6,8 +6,8 @@ File    : auth.py
 Date    : Thursday 25 March 2021
 Desc.   : Handles functions for handling authorisation.
 History : 25/03/2021 - v1.0 - Load basic project file.
-          30/03/2021 - v1.1 - Completed MD2 hash implementation
-          31/03/2021 - v1.2 - Completed UG4 hash implementation with helper functions and timer test harness
+          31/03/2021 - v1.1 - Completed MD2 and UD4 hash implementations with helper functions and timer test harness
+          31/03/2021 - v1.2 -
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
@@ -17,6 +17,7 @@ __version__ = "1.2"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import secrets
 import time
 import binascii
 import db
@@ -38,6 +39,24 @@ def authenticate_user(username, password):
         return account
     else:
         return None
+
+
+def generate_salt():
+    """ Generates a new salt randomly selected from a set of characters.
+
+    :return: a unique 32 character salt
+    """
+    chars = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u",
+             "v", "w", "x", "y", "z", "A", "B", "C", "E", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+             "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+             "_", "-"]
+    salt = str()
+    num_salt_chars = 32
+
+    while num_salt_chars > 0:
+        salt += chars[secrets.randbelow(65)]  # randomly select one of the above chars
+        num_salt_chars -= 1
+    return salt
 
 
 def md2_hash(password):
@@ -238,13 +257,14 @@ def _gen_s_box():
 
 
 if __name__ == "__main__":
-    start = time.perf_counter()
-    print(md2_hash("password"))
-    end = time.perf_counter()
-    print("md2 time taken: ", end - start)
-    print()
-
-    start = time.perf_counter()
-    print(ug4_hash("password"))
-    end = time.perf_counter()
-    print("ug4 time taken: ", end - start)
+    # start = time.perf_counter()
+    # print(md2_hash("password"))
+    # end = time.perf_counter()
+    # print("md2 time taken: ", end - start)
+    # print()
+    #
+    # start = time.perf_counter()
+    # print(ug4_hash("password"))
+    # end = time.perf_counter()
+    # print("ug4 time taken: ", end - start)
+    print(generate_salt())
