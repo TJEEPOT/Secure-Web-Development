@@ -7,7 +7,7 @@ Date    : Thursday 25 March 2021
 Desc.   : Handles functions for handling authorisation.
 History : 25/03/2021 - v1.0 - Load basic project file.
           30/03/2021 - v1.1 - Completed MD2 hash implementation
-          31/03/2021 - v1.2 - Completed UG4 hash implementation with helper functions
+          31/03/2021 - v1.2 - Completed UG4 hash implementation with helper functions and timer test harness
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
@@ -121,7 +121,7 @@ def ug4_hash(password, iterations=50):
 
     :param iterations: Number of iterations of the algorithm remaining to run through. This should remain as default.
     :param password: The password to be hashed
-    :return: An MD2 hash of the given password
+    :return: A 512-bit UG4 hash of the given password
     """
     s_box = [
         139, 157, 90,  231, 13,  22,  145, 230, 44,  66,  93,  181, 23,  2,   200, 232,
