@@ -238,10 +238,13 @@ def _gen_s_box():
 
 
 if __name__ == "__main__":
-    # print(_gen_s_box())
     start = time.perf_counter()
-    ug4_hash("1234567890ABCDEF")
+    print(md2_hash("password"))
     end = time.perf_counter()
-    print("time taken: ", end - start)
-    print(md2_hash("1234567890ABCDEF"))
-    print(ug4_hash("1234567890ABCDEF"))
+    print("md2 time taken: ", end - start)
+    print()
+
+    start = time.perf_counter()
+    print(ug4_hash("password"))
+    end = time.perf_counter()
+    print("ug4 time taken: ", end - start)
