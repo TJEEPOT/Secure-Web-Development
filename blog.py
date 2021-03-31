@@ -21,8 +21,6 @@ import sqlite3
 from functools import wraps
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
-
-=======
 from functools import wraps
 import auth
 import db
