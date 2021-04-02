@@ -16,11 +16,6 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
-
-import sqlite3
-from functools import wraps
-
-from flask import Flask, g, render_template, redirect, request, session, url_for
 from functools import wraps
 import auth
 import db
