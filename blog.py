@@ -28,8 +28,10 @@ import db
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 app = Flask(__name__)
-app.secret_key = 'thisisabadsecretkey'  # KEK
-
+# CS: Generated with os.urandom(16)
+app.secret_key = "b/n/x0c/x15@/xe2_xf2r#kt/xa1lMf/xf0G"
+# CS: Session lasts a week
+app.permanent_session_lifetime = datetime.timedelta(days=7)
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
 def std_context(f):
