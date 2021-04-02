@@ -1,8 +1,11 @@
+import os
 import unittest
 import auth
+from blog import app
 
 
 class MyTestCase(unittest.TestCase):
+
     def test_md2_hash_short(self):
         self.assertEqual("32ec01ec4a6dac72c0ab96fb34c0b5d1", auth.md2_hash("a"))
 
@@ -27,6 +30,10 @@ class MyTestCase(unittest.TestCase):
 
     def test_generate_salt(self):
         self.assertIsNotNone(auth.generate_salt())
+
+    def test_authenticate_user(self):
+        with app.app_context():
+            self.assertEqual(0, auth.authenticate_user("aking", "password"))
 
 
 if __name__ == '__main__':
