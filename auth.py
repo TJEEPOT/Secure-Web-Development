@@ -33,7 +33,7 @@ def authenticate_user(username, password):
     q = db.get_password(password, username)
     user_id = None
     if q:
-        user_id = db.get_user(username)[0]['userid']
+        user_id = db.get_user(username)['userid']
 
     # Wait the difference in time before returning
     time.sleep(1.2)  # Assuming hash + lookup < 1 second
