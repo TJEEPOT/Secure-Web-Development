@@ -72,7 +72,7 @@ def users_posts(uname=None):
     if len(cid) < 1:
         return 'User page not found.'
 
-    cid = cid[0]['userid']
+    cid = cid['userid']
     query = db.get_posts(cid)
 
     def fix(item):
@@ -131,10 +131,11 @@ def create_account():
     username = request.form.get('username', '')
     password = request.form.get('password', '')
     salt     = auth.generate_salt()
-    # TODO: hash the password before inserting into DB.
+    # TODO: hash the password before inserting into DB. -MS
 
     db.add_user(name, email, username, password, salt)
-    # TODO: Should probably check here that the insert was a success before sending a confirmation.
+    # TODO: Should probably check here that the insert was a success before sending a confirmation. If the username
+    #  exists, it should tell the user, if the email exists, it should email a password recovery to the user -MS
     # send_confirmation_email()
 
     return render_template('auth/create_account.html', msg='Check your email for confirmation.')
