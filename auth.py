@@ -20,26 +20,24 @@ import secrets
 import time
 import binascii
 import db
-from time import sleep
 
 
 def authenticate_user(username, password):
-    authenticated = False
-    start_time = time.clock()
     # Return the user's salt from the db or None if not found
     salt = db.get_salt(username)
     if salt is not None:
         password = password + salt
         password = ug4_hash(password)
         # Return the user's hashed password from the database
-        q = db.get_password(username)
-        if password == q:
-            authenticated = True
+
+    q = db.get_password(password, username)
+    user_id = None
+    if q:
+        user_id = db.get_user(username)[0]['userid']
+
     # Wait the difference in time before returning
-    request_time = time.clock() - start
-    # Assuming hash + lookup < 1 second
-    sleep(.1000-request_time)
-    return authenticated
+    time.sleep(1.2)  # Assuming hash + lookup < 1 second
+    return user_id
 
 
 def generate_salt():

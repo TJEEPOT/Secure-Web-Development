@@ -50,7 +50,7 @@ def close_connection(exception):
         database.close()
 
 
-@app.route("/")
+@app.route('/')
 @std_context
 def index():
     posts = db.get_all_posts()
@@ -65,7 +65,7 @@ def index():
     return render_template('blog/index.html', **context)
 
 
-@app.route("/<uname>/")
+@app.route('/<uname>/')
 @std_context
 def users_posts(uname=None):
     cid = db.get_user(uname)
@@ -84,7 +84,7 @@ def users_posts(uname=None):
     return render_template('user_posts.html', **context)
 
 
-@app.route("/login/", methods=['GET', 'POST'])
+@app.route('/login/', methods=['GET', 'POST'])
 @std_context
 def login():
     username = request.form.get('username', '')
@@ -94,9 +94,9 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('auth/login.html', **context)
 
-    account = auth.authenticate_user(username, password)
-    if account is not None:
-        session['userid'] = account[0]['userid']
+    user_id = auth.authenticate_user(username, password)
+    if user_id is not None:
+        session['userid'] = user_id
         session['username'] = username
         return redirect(url_for('index'))
     else:
@@ -105,7 +105,7 @@ def login():
 
 
 # I don't think this code needs moving anywhere since I think it's a flask thing. -MS
-@app.route("/loginfail/")
+@app.route('/loginfail/')
 @std_context
 def login_fail():
     context = request.context
@@ -114,15 +114,34 @@ def login_fail():
 
 
 # TODO: Review this when doing sessions (Issue 28) -MS
-@app.route("/logout/")
+@app.route('/logout/')
 def logout():
     session.pop('userid', None)
     session.pop('username', None)
     return redirect('/')
 
 
+@app.route('/create_account/', methods=['GET', 'POST'])
+def create_account():
+    if request.method == 'GET':
+        return render_template('auth/create_account.html')
+
+    name     = request.form.get('name', '')
+    email    = request.form.get('email', '')
+    username = request.form.get('username', '')
+    password = request.form.get('password', '')
+    salt     = auth.generate_salt()
+    # TODO: hash the password before inserting into DB.
+
+    db.add_user(name, email, username, password, salt)
+    # TODO: Should probably check here that the insert was a success before sending a confirmation.
+    # send_confirmation_email()
+
+    return render_template('auth/create_account.html', msg='Check your email for confirmation.')
+
+
 # TODO: Rewrite db stuff (Issue 27) -MS
-@app.route("/post/", methods=['GET', 'POST'])
+@app.route('/post/', methods=['GET', 'POST'])
 @std_context
 def new_post():
     if 'userid' not in session:
@@ -139,14 +158,12 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
 
-    query = db.add_post(content, date, title, userid)
-    db.query_db(query)
-    db.get_db().commit()
+    db.add_post(content, date, title, userid)
     return redirect('/')
 
 
 # TODO: Rewrite to hide if account exists or not (Issue 25) -MS
-@app.route("/reset/", methods=['GET', 'POST'])
+@app.route('/reset/', methods=['GET', 'POST'])
 @std_context
 def reset():
     context = request.context
@@ -166,7 +183,7 @@ def reset():
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 # might want to have these link to the user pages too?
-@app.route("/search/")
+@app.route('/search/')
 @std_context
 def search_page():
     context = request.context
@@ -181,7 +198,7 @@ def search_page():
 
 
 # TODO: might want to remove this (Issue 4) -MS
-@app.route("/resetdb/<token>")
+@app.route('/resetdb/<token>')
 def reset_db(token=None):
     if token == 'secret42':
         import create_db
