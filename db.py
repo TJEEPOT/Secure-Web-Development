@@ -6,16 +6,19 @@ File    : db.py
 Date    : Thursday 25 March 2021
 Desc.   : Handles functions for interaction with the database
 History : 25/03/2021 - v1.0 - Load basic project file.
+          03/04/2021 - v1.1 - create add_user().
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.0"
+__version__ = "1.1"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import os
 import sqlite3
+import time
 
 from flask import g
 
@@ -27,7 +30,9 @@ DATABASE = 'database.sqlite'
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        db_path = os.path.join(base_dir, DATABASE)
+        db = g._database = sqlite3.connect(db_path)
 
     def make_dicts(cursor, row):
         return dict((cursor.description[idx][0], value)
@@ -49,21 +54,36 @@ def get_salt(username):
     pass
 
 
-# TODO: This won't be needed when get_salt() is implemented -MS
 # TODO: Rewrite (Issue 27) -MS
 def get_user(username):
     query = "SELECT userid FROM users WHERE username='%s'" % username
-    account = query_db(query)
+    account = query_db(query, one=True)
     return account
 
 
+def add_user(name, email, username, password, salt):
+    # first check if the user exists
+    query = "SELECT userid FROM users WHERE email=?"
+    email_exists = query_db(query, (email,))
+    query = "SELECT userid FROM users WHERE username=?"
+    username_exists = query_db(query, (username,))
+    if email_exists or username_exists:
+        time.sleep(0.04)  # Conceals if the new user was inserted
+        return False
+
+    # if it's a new user, add them to the db
+    query = "INSERT INTO users (username, name, password, email, salt) VALUES (?,?,?,?,?)"
+    query_db(query, (username, name, password, email, salt))
+    get_db().commit()
+    return True
+
+
 # TODO: Rewrite (Issue 27) -MS
-def get_password(account, password, username):
+def get_password(password, username):
     query = "SELECT userid FROM users WHERE username='%s' AND password='%s'" % (username, password)
     print(query)
-    account2 = query_db(query)
-    print(account)
-    pass_match = len(account2) > 0
+    account = query_db(query)
+    pass_match = len(account) > 0
     return pass_match
 
 
@@ -83,7 +103,8 @@ def get_posts(cid):
 def add_post(content, date, title, userid):
     query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')" % (
         userid, date, title, content)
-    return query
+    query_db(query)
+    get_db().commit()
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
