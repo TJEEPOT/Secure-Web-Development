@@ -17,13 +17,14 @@ __status__ = "Development"  # or "Production"
 
 import datetime
 from functools import wraps
-import auth
 import db
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 app = Flask(__name__)
-app.secret_key = 'thisisabadsecretkey'  # KEK
+
+# TODO: This will need to go into memory in the future. -MS
+app.secret_key = 'cPvBxFg36rarlvS4JC87hKl5FJW1yP-5QTE5A6Q-0x4'
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
@@ -94,7 +95,7 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('auth/login.html', **context)
 
-    user_id = auth.authenticate_user(username, password)
+    user_id = db.get_login(username, password)
     if user_id is not None:
         session['userid'] = user_id
         session['username'] = username
@@ -130,10 +131,8 @@ def create_account():
     email    = request.form.get('email', '')
     username = request.form.get('username', '')
     password = request.form.get('password', '')
-    salt     = auth.generate_salt()
-    # TODO: hash the password before inserting into DB. -MS
 
-    db.add_user(name, email, username, password, salt)
+    db.add_user(name, email, username, password)
     # TODO: Should probably check here that the insert was a success before sending a confirmation. If the username
     #  exists, it should tell the user, if the email exists, it should email a password recovery to the user -MS
     # send_confirmation_email()
