@@ -56,10 +56,20 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
+def update_db(query, args=()):
+    cur = get_db().cursor()
+    cur.execute(query, args)
+    get_db().commit()
+
+def get_salt(username):
+    pass
+
+
+# TODO: This won't be needed when get_salt() is implemented -MS
 # TODO: Rewrite (Issue 27) -MS
 def get_user(username):
-    query = "SELECT userid FROM users WHERE username='%s'" % username
-    account = query_db(query, one=True)
+    query = "SELECT userid FROM users WHERE username=?"
+    account = query_db(query, (username,), one=True)
     return account
 
 
@@ -145,3 +155,17 @@ def get_email(email):
 def get_users(search):
     query = "SELECT username FROM users WHERE username LIKE '%%%s%%';" % search
     return query
+
+
+def set_two_factor(userid: str, datetime :str, code: str):
+    query = f"INSERT or REPLACE INTO twofactor VALUES (?,?,?,?)"
+    update_db(query, (userid, datetime, code, 3))
+
+
+def del_two_factor(userid: str):
+    query = "DELETE FROM twofactor WHERE user=?"
+    update_db(query, (userid,))
+
+def tick_down_two_factor_attempts(userid: str):
+    current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?",(userid,))[0]['attempts']
+    update_db("UPDATE twofactor SET attempts =? WHERE user =?", (current_attempts-1, userid))
