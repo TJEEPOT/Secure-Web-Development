@@ -3,6 +3,8 @@ import unittest
 import db
 from blog import app
 
+# Integration testing for all components
+
 
 class MyTestCase(unittest.TestCase):
     def test_create_account(self):
