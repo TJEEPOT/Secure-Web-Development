@@ -4,7 +4,11 @@ import random
 import re
 import sqlite3
 
+import auth
+
+# TODO: Move these into memory before going into production - MS
 DATABASE = 'database.sqlite'
+PEPPER = 'VEZna2zRIblhQPw-NqY3aQ'
 
 # Simple user blog site
 
@@ -69,8 +73,8 @@ def create():
     c = db.cursor()
 
     c.execute(
-        '''CREATE TABLE users (userid integer PRIMARY KEY, username VARCHAR(32), name TEXT, password VARCHAR(8), 
-        email TEXT)''')
+        '''CREATE TABLE users (userid integer PRIMARY KEY, username VARCHAR(32), name TEXT, password VARCHAR(64), 
+        email TEXT, salt TEXT)''')
     c.execute(
         '''CREATE TABLE posts (creator integer REFERENCES users(userid), date INTEGER, title TEXT, content TEXT)''')
     c.execute('''CREATE INDEX user_username on users (username)''')
@@ -85,12 +89,15 @@ def create():
 
 
 def create_content(db, user_id, name):
-    password = 'password'
+    salt = auth.generate_salt()
+    password = 'password' + salt + PEPPER  # TODO: might want to randomise the word used for the password?
+    pw_hash = auth.ug4_hash(password)
     c = db.cursor()
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
     email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
-    c.execute('INSERT INTO users (userid, username, name, password, email) VALUES (?,?,?,?,?)',
-              (user_id, username, name, password, email))
+
+    c.execute('INSERT INTO users (userid, username, name, password, email, salt) VALUES (?,?,?,?,?,?)',
+              (user_id, username, name, pw_hash, email, salt))
     date = datetime.datetime.now() - datetime.timedelta(28)
 
     for i in range(random.randrange(4, 8)):

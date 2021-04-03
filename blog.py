@@ -17,16 +17,18 @@ __status__ = "Development"  # or "Production"
 
 import datetime
 from functools import wraps
-import auth
 import db
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 app = Flask(__name__)
+
+# TODO: This will need to go into memory in the future. -MS
 # CS: Generated with os.urandom(16)
 app.secret_key = "b/n/x0c/x15@/xe2_xf2r#kt/xa1lMf/xf0G"
 # CS: Session lasts a week
 app.permanent_session_lifetime = datetime.timedelta(days=7)
+
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
 def std_context(f):
@@ -74,7 +76,7 @@ def users_posts(uname=None):
     if len(cid) < 1:
         return 'User page not found.'
 
-    cid = cid[0]['userid']
+    cid = cid['userid']
     query = db.get_posts(cid)
 
     def fix(item):
@@ -96,7 +98,7 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('auth/login.html', **context)
 
-    user_id = auth.authenticate_user(username, password)
+    user_id = db.get_login(username, password)
     if user_id is not None:
         session['userid'] = user_id
         session['username'] = username
@@ -132,11 +134,10 @@ def create_account():
     email    = request.form.get('email', '')
     username = request.form.get('username', '')
     password = request.form.get('password', '')
-    salt     = auth.generate_salt()
-    # TODO: hash the password before inserting into DB.
 
-    db.add_user(name, email, username, password, salt)
-    # TODO: Should probably check here that the insert was a success before sending a confirmation.
+    db.add_user(name, email, username, password)
+    # TODO: Should probably check here that the insert was a success before sending a confirmation. If the username
+    #  exists, it should tell the user, if the email exists, it should email a password recovery to the user -MS
     # send_confirmation_email()
 
     return render_template('auth/create_account.html', msg='Check your email for confirmation.')
