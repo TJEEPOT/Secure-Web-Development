@@ -6,13 +6,14 @@ File    : db.py
 Date    : Thursday 25 March 2021
 Desc.   : Handles functions for interaction with the database
 History : 25/03/2021 - v1.0 - Load basic project file.
-          03/04/2021 - v1.1 - create add_user().
+          02/04/2021 - v1.1 - Create add_user().
+          03/04/2021 - v1.2 - Create get_login(), merge in get_salt() and get_password()
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.1"
+__version__ = "1.2"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
@@ -28,6 +29,7 @@ import validation
 # TODO: Move these into memory before going into production - MS
 DATABASE = 'database.sqlite'
 PEPPER = 'VEZna2zRIblhQPw-NqY3aQ'
+
 
 # TODO: This is really badly written, will need rewriting and splitting into multiple functions for different
 #  accounts. (Issue 24) -MS
