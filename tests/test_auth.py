@@ -31,10 +31,6 @@ class MyTestCase(unittest.TestCase):
     def test_generate_salt(self):
         self.assertIsNotNone(auth.generate_salt())
 
-    def test_authenticate_user(self):
-        with app.app_context():
-            self.assertEqual(0, auth.authenticate_user("aking", "password"))
-
 
 if __name__ == '__main__':
     unittest.main()
