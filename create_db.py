@@ -4,6 +4,8 @@ import random
 import re
 import sqlite3
 
+import auth
+
 DATABASE = 'database.sqlite'
 
 # Simple user blog site
@@ -89,8 +91,9 @@ def create_content(db, user_id, name):
     c = db.cursor()
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
     email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
-    c.execute('INSERT INTO users (userid, username, name, password, email) VALUES (?,?,?,?,?)',
-              (user_id, username, name, password, email))
+    salt = auth.generate_salt()
+    c.execute('INSERT INTO users (userid, username, name, password, email, salt) VALUES (?,?,?,?,?,?)',
+              (user_id, username, name, password, email, salt))
     date = datetime.datetime.now() - datetime.timedelta(28)
 
     for i in range(random.randrange(4, 8)):
