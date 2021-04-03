@@ -22,10 +22,12 @@ from functools import wraps
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
-=======
+
 from functools import wraps
 import auth
 import db
+import emailer
+import validation
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
@@ -39,7 +41,7 @@ def std_context(f):
     def wrapper(*args, **kwargs):
         context = {}
         request.context = context
-        if 'userid' in session:
+        if 'validated' in session:
             context['loggedin'] = True
             context['username'] = session['username']
         else:
@@ -80,14 +82,14 @@ def users_posts(uname=None):
         return 'User page not found.'
 
     cid = cid[0]['userid']
-    query = db.get_posts(cid)
-
+    query = 'SELECT date,title,content FROM posts WHERE creator=? ORDER BY date DESC'
+    arg = (cid,)
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
 
     context = request.context
-    context['posts'] = map(fix, db.query_db(query))
+    context['posts'] = map(fix, db.query_db(query, arg))
     return render_template('user_posts.html', **context)
 
 
@@ -105,10 +107,73 @@ def login():
     if account is not None:
         session['userid'] = account[0]['userid']
         session['username'] = username
-        return redirect(url_for('index'))
+        uid = session['userid']
+        uses_two_factor = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (uid,))[0]['usetwofactor']
+        url = 'index'
+        if uses_two_factor:
+            #user_email = db.query_db("SELECT email FROM users WHERE userid =?", (uid,))[0]['email']
+            user_email = "dsscw2blogacc@gmail.com"  # Debug only (user emails are fake in current db)
+            if validation.validate_email(user_email):
+                code = auth.generate_two_factor_code()
+                db.set_two_factor(uid, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
+                # Print code to console for debug
+                print(db.query_db("SELECT * FROM twofactor WHERE user = ?", (uid,)))
+                # TODO This was intended to be reusable by blog.py, creating and destroying is meh
+                # following two lines need to be active in real version (disabled for testing to prevent spam)
+                #e = emailer.Emailer()
+                #e.send_email(user_email, "Two Factor Code", code)
+
+                url = 'verify_code'
+            else:
+                # user email is invalid THIS SHOULD ONLY HAPPEN WITH THE FAKE TEST USERS
+                print(f"User email is invalid: {user_email}")
+
+
+        else:
+            session['validated'] = True
+
+        return redirect(url_for(url))
     else:
         # Return incorrect details
         return redirect(url_for('login_fail', error='Incorrect Login Details'))
+
+
+@app.route("/confirmation/", methods=['GET', 'POST'])
+@std_context
+def verify_code():
+    # Function for two factor authentication
+    uid = session['userid']
+    user_code = validation.validate_two_factor(request.form.get('code', ''))
+
+    def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
+        db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
+        mins = round((time_now - db_time).total_seconds() / 60)   # Why does timedelta not have a get minutes func!!!!1
+        limit = 5  # Max time for codes to work in minutes
+        return mins < limit
+
+    if user_code:
+        row = db.query_db("SELECT * FROM twofactor WHERE user = ?", (uid,))
+        attempts_remaining = (row[0]['attempts'])-1
+        original_time = row[0]['timestamp']
+        time_now = datetime.datetime.now()
+
+        if attempts_remaining > 0:
+            if within_time_limit(original_time, time_now):
+                db_code = db.query_db("SELECT code FROM twofactor WHERE user=?", (uid,))[0]['code']
+                if user_code == db_code:
+                    # success
+                    session['validated'] = True
+                    return redirect(url_for('index'))
+                else:
+                    # fail
+                    db.tick_down_two_factor_attempts(uid)
+                    return render_template('auth/two_factor.html',
+                                           message=f'Invalid code. Attempts remaining {attempts_remaining}')
+            else:
+                return render_template('auth/login_fail.html', error='Code has expired. Please login again')
+        else:
+            return render_template('auth/login_fail.html', error='Too many failed attempts')
+    return render_template('auth/two_factor.html', error='Code has expired or is invalid')
 
 
 # I don't think this code needs moving anywhere since I think it's a flask thing. -MS
@@ -125,6 +190,8 @@ def login_fail():
 def logout():
     session.pop('userid', None)
     session.pop('username', None)
+    session.pop('validated', None)
+    session.pop('loggedin', None)
     return redirect('/')
 
 
@@ -200,4 +267,5 @@ def reset_db(token=None):
 
 
 if __name__ == '__main__':
+    e = emailer.Emailer()
     app.run()
