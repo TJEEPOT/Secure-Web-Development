@@ -2,12 +2,11 @@ import datetime
 import os
 import random
 import re
-import secrets
 import sqlite3
 
-# TODO: Move these into memory before going into production - MS
 import auth
 
+# TODO: Move these into memory before going into production - MS
 DATABASE = 'database.sqlite'
 PEPPER = 'VEZna2zRIblhQPw-NqY3aQ'
 

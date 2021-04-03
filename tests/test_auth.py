@@ -1,7 +1,5 @@
-import os
 import unittest
 import auth
-from blog import app
 
 
 class MyTestCase(unittest.TestCase):
