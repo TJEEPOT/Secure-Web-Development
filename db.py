@@ -22,8 +22,12 @@ import time
 
 from flask import g
 
-DATABASE = 'database.sqlite'
+import auth
+import validation
 
+# TODO: Move these into memory before going into production - MS
+DATABASE = 'database.sqlite'
+PEPPER = 'VEZna2zRIblhQPw-NqY3aQ'
 
 # TODO: This is really badly written, will need rewriting and splitting into multiple functions for different
 #  accounts. (Issue 24) -MS
@@ -50,10 +54,6 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
-def get_salt(username):
-    pass
-
-
 # TODO: Rewrite (Issue 27) -MS
 def get_user(username):
     query = "SELECT userid FROM users WHERE username='%s'" % username
@@ -61,33 +61,59 @@ def get_user(username):
     return account
 
 
-def add_user(name, email, username, password, salt):
+def get_login(username, password):
+    start_time = time.time()
+    # Return the user's salt from the db or None if not found
+    query = "SELECT salt FROM users WHERE username=?"
+    salt = query_db(query, (username,), one=True)
+    if salt is None:
+        finish_time = time.time()
+        processing_time = finish_time - start_time
+        time.sleep(1 - processing_time)  # we want this entire function to take one second
+        return None
+
+    salt = salt['salt']
+    password = auth.ug4_hash(password + salt + PEPPER)
+
+    query = "SELECT userid FROM users WHERE username=? AND password=?"
+    user_id = query_db(query, (username, password), one=True)
+    if user_id is not None:
+        user_id = user_id['userid']
+
+    finish_time = time.time()
+    processing_time = finish_time - start_time
+    time.sleep(1 - processing_time)  # as above, extend processing time to one second
+
+    return user_id
+
+
+def add_user(name, email, username, password):
+    start_time = time.time()
     # first check if the user exists
     query = "SELECT userid FROM users WHERE email=?"
     email_exists = query_db(query, (email,))
     query = "SELECT userid FROM users WHERE username=?"
     username_exists = query_db(query, (username,))
     if email_exists or username_exists:
-        time.sleep(0.04)  # Conceals if the new user was inserted
+        finish_time = time.time()
+        processing_time = finish_time - start_time
+        time.sleep(1 - processing_time)  # conceal if the user already exists
         return False
 
-    # if it's a new user, add them to the db
+    # if it's a new user, build their salt and hash and add them to the db
+    salt = auth.generate_salt()
+    password = password + salt + PEPPER
+    pw_hash = auth.ug4_hash(password)
     query = "INSERT INTO users (username, name, password, email, salt) VALUES (?,?,?,?,?)"
-    query_db(query, (username, name, password, email, salt))
+    query_db(query, (username, name, pw_hash, email, salt))
     get_db().commit()
+
+    finish_time = time.time()
+    processing_time = finish_time - start_time
+    time.sleep(1 - processing_time)  # ensure the processing time remains one second
     return True
 
 
-# TODO: Rewrite (Issue 27) -MS
-def get_password(password, username):
-    query = "SELECT userid FROM users WHERE username='%s' AND password='%s'" % (username, password)
-    print(query)
-    account = query_db(query)
-    pass_match = len(account) > 0
-    return pass_match
-
-
-# TODO: No (issue 27) -MS
 def get_all_posts():
     return query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.name,users.username FROM posts '
                     'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')

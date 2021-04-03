@@ -19,25 +19,6 @@ __status__ = "Development"  # or "Production"
 import secrets
 import time
 import binascii
-import db
-
-
-def authenticate_user(username, password):
-    # Return the user's salt from the db or None if not found
-    salt = db.get_salt(username)
-    if salt is not None:
-        password = password + salt
-        password = ug4_hash(password)
-        # Return the user's hashed password from the database
-
-    q = db.get_password(password, username)
-    user_id = None
-    if q:
-        user_id = db.get_user(username)['userid']
-
-    # Wait the difference in time before returning
-    time.sleep(1.2)  # Assuming hash + lookup < 1 second
-    return user_id
 
 
 def generate_salt():
