@@ -45,19 +45,19 @@ encoding_list = {
 # passwords between 8-64 characters
 def validate_password(user_input: str):
     matched = re.match(r"^[\S]{8,64}$", user_input)
-    return matched
+    return matched.string if matched else matched
 
 
 # minimum and maximum length, "_" and "-" only allowed special characters
 def validate_username(user_input: str):
     matched = re.match(r"^[\w_-]{3,24}$", user_input)
-    return matched
+    return matched.string if matched else matched
 
 
 # alphanumeric + caps, 6-10
 def validate_two_factor(user_input: str):
     matched = re.match(r"^[\w]{6,10}$", user_input)
-    return matched
+    return matched.string if matched else matched
 
 
 # encode html characters, set maximum length
