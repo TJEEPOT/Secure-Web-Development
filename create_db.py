@@ -70,27 +70,34 @@ def create():
 
     c.execute(
         '''CREATE TABLE users (userid integer PRIMARY KEY, username VARCHAR(32), name TEXT, password VARCHAR(8), 
-        email TEXT)''')
+        email TEXT, usetwofactor INTEGER default 0)''')
     c.execute(
         '''CREATE TABLE posts (creator integer REFERENCES users(userid), date INTEGER, title TEXT, content TEXT)''')
     c.execute('''CREATE INDEX user_username on users (username)''')
     c.execute('''CREATE INDEX user_posts on posts (creator,date)''')
+
+    # Twofactor table
+    c.execute('''CREATE TABLE twofactor (user integer UNIQUE REFERENCES  users(userid), timestamp TEXT, code TEXT, 
+        attempts INTEGER default 3)''')
     db.commit()
 
     user_id = 0
     for user in USERS:
-        create_content(db, user_id, user)
+        if user != "Aleida King":
+            create_content(db, user_id, user)
+        else:
+            create_content(db, user_id, user, 1)
         user_id += 1
     db.commit()
 
 
-def create_content(db, user_id, name):
+def create_content(db, user_id, name, twofac=0):
     password = 'password'
     c = db.cursor()
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
     email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
-    c.execute('INSERT INTO users (userid, username, name, password, email) VALUES (?,?,?,?,?)',
-              (user_id, username, name, password, email))
+    c.execute('INSERT INTO users (userid, username, name, password, email, usetwofactor) VALUES (?,?,?,?,?,?)',
+              (user_id, username, name, password, email, twofac))
     date = datetime.datetime.now() - datetime.timedelta(28)
 
     for i in range(random.randrange(4, 8)):
