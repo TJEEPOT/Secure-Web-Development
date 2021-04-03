@@ -95,7 +95,11 @@ def create_content(db, user_id, name, twofac=0):
     password = 'password'
     c = db.cursor()
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
-    email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
+
+    # email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
+    # sabotaging the emails for these fake users
+    email = '%s.%s-email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
+
     c.execute('INSERT INTO users (userid, username, name, password, email, usetwofactor) VALUES (?,?,?,?,?,?)',
               (user_id, username, name, password, email, twofac))
     date = datetime.datetime.now() - datetime.timedelta(28)
