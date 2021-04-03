@@ -24,7 +24,6 @@ from flask import Flask, g, render_template, redirect, request, session, url_for
 
 
 from functools import wraps
-import auth
 import db
 import emailer
 import validation
@@ -32,7 +31,12 @@ import validation
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 app = Flask(__name__)
-app.secret_key = 'thisisabadsecretkey'  # KEK
+
+# TODO: This will need to go into memory in the future. -MS
+# CS: Generated with os.urandom(16)
+app.secret_key = "b/n/x0c/x15@/xe2_xf2r#kt/xa1lMf/xf0G"
+# CS: Session lasts a week
+app.permanent_session_lifetime = datetime.timedelta(days=7)
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
@@ -59,7 +63,7 @@ def close_connection(exception):
         database.close()
 
 
-@app.route("/")
+@app.route('/')
 @std_context
 def index():
     posts = db.get_all_posts()
@@ -74,14 +78,15 @@ def index():
     return render_template('blog/index.html', **context)
 
 
-@app.route("/<uname>/")
+@app.route('/<uname>/')
 @std_context
 def users_posts(uname=None):
     cid = db.get_user(uname)
     if len(cid) < 1:
         return 'User page not found.'
 
-    cid = cid[0]['userid']
+    cid = cid['userid']
+    query = db.get_posts(cid)
     query = 'SELECT date,title,content FROM posts WHERE creator=? ORDER BY date DESC'
     arg = (cid,)
     def fix(item):
@@ -93,7 +98,7 @@ def users_posts(uname=None):
     return render_template('user_posts.html', **context)
 
 
-@app.route("/login/", methods=['GET', 'POST'])
+@app.route('/login/', methods=['GET', 'POST'])
 @std_context
 def login():
     username = request.form.get('username', '')
@@ -103,9 +108,9 @@ def login():
     if len(username) < 1 and len(password) < 1:
         return render_template('auth/login.html', **context)
 
-    account = auth.authenticate_user(username, password)
-    if account is not None:
-        session['userid'] = account[0]['userid']
+    user_id = db.get_login(username, password)
+    if user_id is not None:
+        session['userid'] = user_id
         session['username'] = username
         uid = session['userid']
         uses_two_factor = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (uid,))[0]['usetwofactor']
@@ -177,7 +182,7 @@ def verify_code():
 
 
 # I don't think this code needs moving anywhere since I think it's a flask thing. -MS
-@app.route("/loginfail/")
+@app.route('/loginfail/')
 @std_context
 def login_fail():
     context = request.context
@@ -186,7 +191,7 @@ def login_fail():
 
 
 # TODO: Review this when doing sessions (Issue 28) -MS
-@app.route("/logout/")
+@app.route('/logout/')
 def logout():
     session.pop('userid', None)
     session.pop('username', None)
@@ -195,8 +200,26 @@ def logout():
     return redirect('/')
 
 
+@app.route('/create_account/', methods=['GET', 'POST'])
+def create_account():
+    if request.method == 'GET':
+        return render_template('auth/create_account.html')
+
+    name     = request.form.get('name', '')
+    email    = request.form.get('email', '')
+    username = request.form.get('username', '')
+    password = request.form.get('password', '')
+
+    db.add_user(name, email, username, password)
+    # TODO: Should probably check here that the insert was a success before sending a confirmation. If the username
+    #  exists, it should tell the user, if the email exists, it should email a password recovery to the user -MS
+    # send_confirmation_email()
+
+    return render_template('auth/create_account.html', msg='Check your email for confirmation.')
+
+
 # TODO: Rewrite db stuff (Issue 27) -MS
-@app.route("/post/", methods=['GET', 'POST'])
+@app.route('/post/', methods=['GET', 'POST'])
 @std_context
 def new_post():
     if 'userid' not in session:
@@ -213,14 +236,12 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
 
-    query = db.add_post(content, date, title, userid)
-    db.query_db(query)
-    db.get_db().commit()
+    db.add_post(content, date, title, userid)
     return redirect('/')
 
 
 # TODO: Rewrite to hide if account exists or not (Issue 25) -MS
-@app.route("/reset/", methods=['GET', 'POST'])
+@app.route('/reset/', methods=['GET', 'POST'])
 @std_context
 def reset():
     context = request.context
@@ -240,7 +261,7 @@ def reset():
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 # might want to have these link to the user pages too?
-@app.route("/search/")
+@app.route('/search/')
 @std_context
 def search_page():
     context = request.context
@@ -255,7 +276,7 @@ def search_page():
 
 
 # TODO: might want to remove this (Issue 4) -MS
-@app.route("/resetdb/<token>")
+@app.route('/resetdb/<token>')
 def reset_db(token=None):
     if token == 'secret42':
         import create_db
@@ -267,5 +288,4 @@ def reset_db(token=None):
 
 
 if __name__ == '__main__':
-    e = emailer.Emailer()
     app.run()
