@@ -66,10 +66,10 @@ class TestValidation(unittest.TestCase):
         self.assertEqual("abcdef1234", v.validate_two_factor("abcdef1234"))
 
     def test_two_factor_below_min(self):
-        self.assertEqual("abc", v.validate_two_factor("abc"))
+        self.assertIsNone(v.validate_two_factor("abc"))
 
     def test_two_factor_above_max(self):
-        self.assertEqual("abcdef123456789", v.validate_two_factor("abcdef123456789"))
+        self.assertIsNone(v.validate_two_factor("abcdef123456789"))
 
     def test_two_factor_invalid_characters(self):
         self.assertIsNone(v.validate_two_factor("` or 1=1;--"))
@@ -77,8 +77,27 @@ class TestValidation(unittest.TestCase):
     def test_two_factor_caps(self):
         self.assertEqual("AbCdEf", v.validate_two_factor("AbCdEf"))
 
+    # email tests
 
+    def test_email_short(self):
+        email = "test@test.com"
+        self.assertEqual(email, v.validate_email(email))
 
+    def test_email_special_characters(self):
+        email = "test-test.test@test.com"
+        self.assertEqual(email, v.validate_email(email))
+
+    def test_email_subdomain(self):
+        email = "test@test.co.uk"
+        self.assertEqual(email, v.validate_email(email))
+
+    def test_email_invalid(self):
+        email = "test-test.com"
+        self.assertIsNone(v.validate_email(email))
+
+    def test_email_short(self):
+        email = "' or 1=1;--"
+        self.assertIsNone(v.validate_email(email))
     # post tests
 
     def test_post_xss_length(self):
