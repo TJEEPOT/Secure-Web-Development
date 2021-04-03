@@ -250,13 +250,3 @@ if __name__ == "__main__":
     print(ug4_hash("password"))
     end = time.perf_counter()
     print("ug4 time taken: ", end - start)
-
-
-
-def generate_two_factor_code():
-    # generate a 6 digit temporary code for two factor
-    code = ""
-    selection = string.ascii_letters
-    for x in range(0, 6):
-        code += random.choice(selection)
-    return code

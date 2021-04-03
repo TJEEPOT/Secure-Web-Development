@@ -16,6 +16,8 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
+import string
+import secrets
 
 import sqlite3
 from functools import wraps
@@ -119,7 +121,11 @@ def login():
             #user_email = db.query_db("SELECT email FROM users WHERE userid =?", (uid,))[0]['email']
             user_email = "dsscw2blogacc@gmail.com"  # Debug only (user emails are fake in current db)
             if validation.validate_email(user_email):
-                code = auth.generate_two_factor_code()
+                code = ""
+                selection = string.ascii_letters
+                for x in range(0, 6):
+                    code += secrets.choice(selection)   # TODO secrets library used (not sure if allowed)
+
                 db.set_two_factor(uid, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
                 # Print code to console for debug
                 print(db.query_db("SELECT * FROM twofactor WHERE user = ?", (uid,)))
@@ -158,7 +164,7 @@ def verify_code():
 
     if user_code:
         row = db.query_db("SELECT * FROM twofactor WHERE user = ?", (uid,))
-        attempts_remaining = (row[0]['attempts'])-1
+        attempts_remaining = (row[0]['attempts'])
         original_time = row[0]['timestamp']
         time_now = datetime.datetime.now()
 
@@ -173,7 +179,7 @@ def verify_code():
                     # fail
                     db.tick_down_two_factor_attempts(uid)
                     return render_template('auth/two_factor.html',
-                                           message=f'Invalid code. Attempts remaining {attempts_remaining}')
+                                           message=f'Invalid code. Attempts remaining {attempts_remaining-1}')
             else:
                 return render_template('auth/login_fail.html', error='Code has expired. Please login again')
         else:

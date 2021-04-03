@@ -95,7 +95,7 @@ def create():
     db.commit()
 
 
-def create_content(db, user_id, name):
+def create_content(db, user_id, name, twofac=0):
     salt = auth.generate_salt()
     password = 'password' + salt + PEPPER  # TODO: might want to randomise the word used for the password?
     pw_hash = auth.ug4_hash(password)
@@ -105,8 +105,8 @@ def create_content(db, user_id, name):
     # sabotaging the emails for these fake users
     email = '%s.%s-email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
 
-    c.execute('INSERT INTO users (userid, username, name, password, email, salt) VALUES (?,?,?,?,?,?)',
-              (user_id, username, name, pw_hash, email, salt))
+    c.execute('INSERT INTO users (userid, username, name, password, email,usetwofactor, salt) VALUES (?,?,?,?,?,?,?)',
+              (user_id, username, name, pw_hash, email,twofac, salt))
     date = datetime.datetime.now() - datetime.timedelta(28)
 
     for i in range(random.randrange(4, 8)):
