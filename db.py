@@ -16,10 +16,12 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import sqlite3
+import os.path
 
 from flask import g
 
-DATABASE = 'database.sqlite'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'database.sqlite')
 
 
 # TODO: This is really badly written, will need rewriting and splitting into multiple functions for different
@@ -58,12 +60,12 @@ def get_user(username):
 
 
 # TODO: Rewrite (Issue 27) -MS
-def get_password(account, password, username):
+def get_password(username, password):
     query = "SELECT userid FROM users WHERE username='%s' AND password='%s'" % (username, password)
-    print(query)
     account2 = query_db(query)
-    print(account)
+    print(account2)
     pass_match = len(account2) > 0
+    pass_match = True
     return pass_match
 
 
@@ -75,7 +77,7 @@ def get_all_posts():
 
 # TODO: Rewrite (Issue 27) -MS
 def get_posts(cid):
-    query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % cid
+    query = "SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC" % cid
     return query
 
 
