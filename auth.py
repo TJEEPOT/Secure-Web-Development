@@ -8,7 +8,7 @@ Desc.   : Handles functions for handling authorisation
 History : 25/03/2021 - v1.0 - Load basic project file.
 """
 
-import db
+import db, random, string
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
@@ -34,3 +34,12 @@ def authenticate_user(username, password):
         return account
     else:
         return None
+
+
+def generate_two_factor_code():
+    # generate a 6 digit temporary code for two factor
+    code = ""
+    selection = string.ascii_letters
+    for x in range(0, 6):
+        code += random.choice(selection)
+    return code
