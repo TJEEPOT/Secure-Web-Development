@@ -19,10 +19,10 @@ import re
 
 min_password_length = 8  # OWASP auth guide
 max_password_length = 64  # ^
-min_username_length = 3  # Arbitrary choices
-max_username_length = 24  # ^
-max_post_length = 10000  # ^^
-max_search_length = 100  # ^^^
+min_username_length = 1  # As restricted by create_db.py
+max_username_length = 32  # ^
+max_post_length = 10000  # Arbitrary choices
+max_search_length = 100  # ^
 encoding_list = {
     #    "&": "&#38;",
     ";": "&#59;",
