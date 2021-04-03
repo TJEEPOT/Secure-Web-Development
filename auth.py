@@ -9,6 +9,9 @@ History : 25/03/2021 - v1.0 - Load basic project file.
           31/03/2021 - v1.1 - Completed MD2 and UD4 hash implementations with helper functions and timer test harness
           31/03/2021 - v1.2 - Added function to generate salts
 """
+
+import db, random, string
+
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
@@ -19,25 +22,6 @@ __status__ = "Development"  # or "Production"
 import secrets
 import time
 import binascii
-import db
-
-
-def authenticate_user(username, password):
-    # Return the user's salt from the db or None if not found
-    salt = db.get_salt(username)
-    if salt is not None:
-        password = password + salt
-        password = ug4_hash(password)
-        # Return the user's hashed password from the database
-
-    q = db.get_password(password, username)
-    user_id = None
-    if q:
-        user_id = db.get_user(username)[0]['userid']
-
-    # Wait the difference in time before returning
-    time.sleep(1.2)  # Assuming hash + lookup < 1 second
-    return user_id
 
 
 def generate_salt():
@@ -266,4 +250,3 @@ if __name__ == "__main__":
     print(ug4_hash("password"))
     end = time.perf_counter()
     print("ug4 time taken: ", end - start)
-
