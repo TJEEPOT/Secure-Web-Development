@@ -24,7 +24,10 @@ from flask import Flask, g, render_template, redirect, request, session, url_for
 app = Flask(__name__)
 
 # TODO: This will need to go into memory in the future. -MS
-app.secret_key = 'cPvBxFg36rarlvS4JC87hKl5FJW1yP-5QTE5A6Q-0x4'
+# CS: Generated with os.urandom(16)
+app.secret_key = "b/n/x0c/x15@/xe2_xf2r#kt/xa1lMf/xf0G"
+# CS: Session lasts a week
+app.permanent_session_lifetime = datetime.timedelta(days=7)
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
