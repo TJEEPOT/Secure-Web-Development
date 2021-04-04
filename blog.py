@@ -18,12 +18,11 @@ __status__ = "Development"  # or "Production"
 import datetime
 import re
 from functools import wraps
-
-import db
-
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
-from emailer import send_two_factor
+import db
+import emailer
+
 
 app = Flask(__name__)
 
@@ -108,7 +107,7 @@ def login():
         two_factor = db.query_db('SELECT usetwofactor, email FROM users WHERE userid =?', (uid,), one=True)
         url = 'index'
         if two_factor['usetwofactor'] == 1:
-            url = send_two_factor(uid, two_factor['email'])
+            url = emailer.send_two_factor(uid, two_factor['email'])
         else:
             session['validated'] = True
 
@@ -243,8 +242,7 @@ def reset():
         return render_template('auth/sent_reset.html', **context)
 
 
-# TODO: Rewrite db stuff (Issue 27) -MS
-# might want to have these link to the user pages too?
+# might want to have these link to the user pages too? -MS
 @app.route('/search/')
 @std_context
 def search_page():
