@@ -59,11 +59,13 @@ def validate_two_factor(user_input: str):
     matched = re.match(r"^[\w]{6,10}$", user_input)
     return matched.string if matched else matched
 
+
 # This is a simple email address validation that is not compliant with all email addresses but matches most common.
 # Rely on something else for primary email validation
 def validate_email(user_input: str):
     matched = re.match(r"^\w+(\w|.|-)*@\w+(.|\w)+\w", user_input)
     return matched.string if matched else matched
+
 
 # Encode html characters, set maximum length
 def validate_post(user_input: str):
