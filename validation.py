@@ -42,25 +42,30 @@ encoding_list = {
 }
 
 
-# passwords between 8-64 characters
+# Passwords between 8-64 characters
 def validate_password(user_input: str):
     matched = re.match(r"^[\S]{8,64}$", user_input)
-    return matched
+    return matched.string if matched else matched
 
 
-# minimum and maximum length, "_" and "-" only allowed special characters
+# Minimum and maximum length, "_" and "-" only allowed special characters
 def validate_username(user_input: str):
     matched = re.match(r"^[\w_-]{3,24}$", user_input)
-    return matched
+    return matched.string if matched else matched
 
 
-# alphanumeric + caps, 6-10
+# Alphanumeric + caps, 6-10
 def validate_two_factor(user_input: str):
     matched = re.match(r"^[\w]{6,10}$", user_input)
-    return matched
+    return matched.string if matched else matched
 
+# This is a simple email address validation that is not compliant with all email addresses but matches most common.
+# Rely on something else for primary email validation
+def validate_email(user_input: str):
+    matched = re.match(r"^\w+(\w|.|-)*@\w+(.|\w)+\w", user_input)
+    return matched.string if matched else matched
 
-# encode html characters, set maximum length
+# Encode html characters, set maximum length
 def validate_post(user_input: str):
     replaced_input = user_input
     for key, value in encoding_list.items():
@@ -70,7 +75,7 @@ def validate_post(user_input: str):
     return replaced_input if post_length <= max_post_length else None
 
 
-# same as post but shorter limit for now
+# Same as post but shorter limit for now
 def validate_search(user_input: str):
     replaced_input = user_input
     for key, value in encoding_list.items():

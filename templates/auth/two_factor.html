@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block login %}{% endblock %}
+{% block content %}
+    <h1>Confirmation</h1>
+    <form method="POST" action="/confirmation/">
+        <p><label for="code">Confirmation Code:</label><input name="code" id="code" maxlength="64" /></p>
+        <p><input type="submit" name="send" value="Send" /></p>
+    </form>
+    <p>{{message}}</p>
+{% endblock %}
