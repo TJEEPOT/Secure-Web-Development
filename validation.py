@@ -54,12 +54,6 @@ def validate_username(user_input: str):
     return matched.string if matched else matched
 
 
-# Alphanumeric + caps, 6-10
-def validate_two_factor(user_input: str):
-    matched = re.match(r"^[\w]{6,10}$", user_input)
-    return matched.string if matched else matched
-
-
 # This is a simple email address validation that is not compliant with all email addresses but matches most common.
 # Rely on something else for primary email validation
 def validate_email(user_input: str):
