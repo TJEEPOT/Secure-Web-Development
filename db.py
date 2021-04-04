@@ -133,31 +133,33 @@ def get_all_posts():
 
 # TODO: Rewrite (Issue 27) -MS
 def get_posts(cid):
-    query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % cid
-    return query
+    query = 'SELECT date,title,content FROM posts WHERE creator=? ORDER BY date DESC'
+    posts = query_db(query, (cid,))
+    return posts
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def add_post(content, date, title, userid):
-    query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')" % (
-        userid, date, title, content)
-    query_db(query)
+    query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
+    query_db(query, (userid, date, title, content))
     get_db().commit()
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def get_email(email):
-    query = "SELECT email FROM users WHERE email='%s'" % email
-    return query
+    query = "SELECT email FROM users WHERE email=?"
+    email = query_db(query, email, one=True)
+    return email
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def get_users(search):
-    query = "SELECT username FROM users WHERE username LIKE '%%%s%%';" % search
-    return query
+    query = "SELECT username FROM users WHERE username =?"
+    account = query_db(query, (search,))
+    return account
 
 
-def set_two_factor(userid: str, datetime :str, code: str):
+def set_two_factor(userid: str, datetime: str, code: str):
     query = f"INSERT or REPLACE INTO twofactor VALUES (?,?,?,?)"
     update_db(query, (userid, datetime, code, 3))
 
@@ -165,6 +167,7 @@ def set_two_factor(userid: str, datetime :str, code: str):
 def del_two_factor(userid: str):
     query = "DELETE FROM twofactor WHERE user=?"
     update_db(query, (userid,))
+
 
 def tick_down_two_factor_attempts(userid: str):
     current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?",(userid,))[0]['attempts']
