@@ -20,7 +20,6 @@ __status__ = "Development"  # or "Production"
 import os
 import sqlite3
 import time
-
 from flask import g
 
 import auth
@@ -57,9 +56,11 @@ def query_db(query, args=(), one=False):
 
 
 def update_db(query, args=()):
-    cur = get_db().cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute(query, args)
-    get_db().commit()
+    conn.commit()
+    conn.close()
 
 
 # TODO: Rewrite (Issue 27) -MS
@@ -118,7 +119,7 @@ def add_user(name, email, username, password):
 
     finish_time = time.time()
     processing_time = finish_time - start_time
-    time.sleep(max((1 - processing_time), 0))  # ensure the processing time is at least one second
+    time.sleep(max((1 - processing_time), 0))  # ensure the processing time remains at least one second
     return True
 
 
@@ -129,35 +130,29 @@ def get_all_posts():
 
 # TODO: Rewrite (Issue 27) -MS
 def get_posts(cid):
-    query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % cid
-    result = query_db(query)
-    return result
+    query = 'SELECT date,title,content FROM posts WHERE creator=? ORDER BY date DESC'
+    posts = query_db(query, (cid,))
+    return posts
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def add_post(content, date, title, userid):
-    query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')" % (
-        userid, date, title, content)
-    query_db(query)
-    get_db().commit()
+    query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
+    update_db(query, (userid, date, title, content))
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def get_email(email):
-    query = "SELECT email FROM users WHERE email='%s'" % email
-    return query
+    query = "SELECT email FROM users WHERE email=?"
+    email = query_db(query, email, one=True)
+    return email
 
 
-# TODO: Rewrite db stuff (Issue 27) -MS
+# TODO: Rewrite db stuff (Issue 27) and especially for validation -MS
 def get_users(search):
-    query = "SELECT username FROM users WHERE username LIKE '%%%s%%';" % search
-    return query
-
-
-def get_two_factor(uid):
-    query = 'SELECT * FROM twofactor WHERE user = ?'
-    result = query_db(query, (uid,), one=True)
-    return result
+    query = "SELECT username FROM users WHERE username LIKE ?"
+    users = query_db(query, (search,))
+    return users
 
 
 def set_two_factor(userid: str, datetime: str, code: str):
