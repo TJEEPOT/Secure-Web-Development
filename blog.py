@@ -86,17 +86,14 @@ def users_posts(uname=None):
     cid = db.get_user(uname)
     if len(cid) < 1:
         return 'User page not found.'
-
     cid = cid['userid']
-    query = db.get_posts(cid)
-    query = 'SELECT date,title,content FROM posts WHERE creator=? ORDER BY date DESC'
-    arg = (cid,)
+
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
 
     context = request.context
-    context['posts'] = map(fix, db.query_db(query, arg))
+    context['posts'] = map(fix, db.get_posts(cid))
     return render_template('user_posts.html', **context)
 
 
@@ -242,7 +239,7 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
 
-    db.add_post(content, date, title, userid)
+    db.add_post(userid, date, title, content)
     return redirect('/')
 
 
@@ -256,8 +253,7 @@ def reset():
     if email == '':
         return render_template('auth/reset_request.html')
 
-    query = db.get_email(email)
-    exists = db.query_db(query)
+    exists = db.get_email(email)
     if len(exists) < 1:
         return render_template('auth/no_email.html', **context)
     else:
@@ -273,8 +269,7 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    query = db.get_users(search)
-    users = db.query_db(query)
+    users = db.get_users(search)
     # for user in users:
     context['users'] = users
     context['query'] = search
