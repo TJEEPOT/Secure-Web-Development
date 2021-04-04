@@ -61,11 +61,7 @@ def update_db(query, args=()):
     cur.execute(query, args)
     get_db().commit()
 
-def get_salt(username):
-    pass
 
-
-# TODO: This won't be needed when get_salt() is implemented -MS
 # TODO: Rewrite (Issue 27) -MS
 def get_user(username):
     query = "SELECT userid FROM users WHERE username=?"
@@ -81,7 +77,7 @@ def get_login(username, password):
     if salt is None:
         finish_time = time.time()
         processing_time = finish_time - start_time
-        time.sleep(1 - processing_time)  # we want this entire function to take one second
+        time.sleep(max((1 - processing_time), 0))  # we want this entire function to take at least one second
         return None
 
     salt = salt['salt']
@@ -94,7 +90,7 @@ def get_login(username, password):
 
     finish_time = time.time()
     processing_time = finish_time - start_time
-    time.sleep(1 - processing_time)  # as above, extend processing time to one second
+    time.sleep(max((1 - processing_time), 0))  # as above, extend processing time to at least one second
 
     return user_id
 
@@ -109,7 +105,7 @@ def add_user(name, email, username, password):
     if email_exists or username_exists:
         finish_time = time.time()
         processing_time = finish_time - start_time
-        time.sleep(1 - processing_time)  # conceal if the user already exists
+        time.sleep(max((1 - processing_time), 0))  # conceal if the user already exists
         return False
 
     # if it's a new user, build their salt and hash and add them to the db
@@ -122,7 +118,7 @@ def add_user(name, email, username, password):
 
     finish_time = time.time()
     processing_time = finish_time - start_time
-    time.sleep(1 - processing_time)  # ensure the processing time remains one second
+    time.sleep(max((1 - processing_time), 0))  # ensure the processing time is at least one second
     return True
 
 
@@ -134,7 +130,8 @@ def get_all_posts():
 # TODO: Rewrite (Issue 27) -MS
 def get_posts(cid):
     query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % cid
-    return query
+    result = query_db(query)
+    return result
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
@@ -157,7 +154,13 @@ def get_users(search):
     return query
 
 
-def set_two_factor(userid: str, datetime :str, code: str):
+def get_two_factor(uid):
+    query = 'SELECT * FROM twofactor WHERE user = ?'
+    result = query_db(query, (uid,), one=True)
+    return result
+
+
+def set_two_factor(userid: str, datetime: str, code: str):
     query = f"INSERT or REPLACE INTO twofactor VALUES (?,?,?,?)"
     update_db(query, (userid, datetime, code, 3))
 
@@ -166,6 +169,7 @@ def del_two_factor(userid: str):
     query = "DELETE FROM twofactor WHERE user=?"
     update_db(query, (userid,))
 
+
 def tick_down_two_factor_attempts(userid: str):
-    current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?",(userid,))[0]['attempts']
-    update_db("UPDATE twofactor SET attempts =? WHERE user =?", (current_attempts-1, userid))
+    current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?", (userid,), one=True)['attempts']
+    update_db("UPDATE twofactor SET attempts =? WHERE user =?", ((current_attempts - 1), userid))
