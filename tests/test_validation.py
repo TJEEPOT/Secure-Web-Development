@@ -21,9 +21,8 @@ class TestValidation(unittest.TestCase):
         self.assertIsNone(v.validate_password("pass"))
 
     def test_password_above_max(self):
-        self.assertIsNone(
-            v.validate_password(
-                "oknowthisisareallylongpasswordthatnooneshouldeverhavebecauseitsjustannoyingatthispoint"))
+        password = "oknowthisisareallylongpasswordthatnooneshouldeverhavebecauseitsjustannoyingatthispoint"
+        self.assertIsNone(v.validate_password(password))
 
     # username tests
     def test_username_min(self):
