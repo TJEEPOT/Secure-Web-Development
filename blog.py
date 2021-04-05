@@ -21,7 +21,6 @@ import secrets
 import string
 from functools import wraps
 
-import flask
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 import db
@@ -97,7 +96,7 @@ def users_posts(uname=None):
 @std_context
 def login():
     # CS: Capture IP address
-    ip_address = flask.request.remote_addr
+    ip_address = request.remote_addr
     # CS: Insert it if it doesn't exist
     db.update_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
     # CS: Get current login attempts
@@ -293,7 +292,6 @@ def reset():
 
     exists = db.get_email(email)
     if not exists:
-
         return render_template('auth/no_email.html', **context)
 
     context['email'] = email

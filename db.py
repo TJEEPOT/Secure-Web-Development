@@ -153,7 +153,7 @@ def add_post(content, date, title, userid):
     insert_db(query, (userid, date, title, content))
 
 
-# TODO: Rewrite db stuff (Issue 27) -MS
+# TODO: Rewrite db stuff (Issue 27)... wait, why does this even exist? -MS
 def get_email(email):
     query = "SELECT email FROM users WHERE email=?"
     email = query_db(query, (email,), one=True)
