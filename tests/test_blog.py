@@ -101,14 +101,24 @@ class MyTestCase(unittest.TestCase):
             self.assertNotIn(b'<strong>User:</strong> bquayle<br />', response.data)
             self.assertIn(b'<a href="/login/">Login</a>', response.data)
 
+    def test_incorrect_login(self):
+        with app.test_client() as client:
+            ip = '127.0.0.1'
+            local = {'REMOTE_ADDR': ip}
+
+            # ensure loginattempts is empty
+            with app.app_context():
+                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip, ))
+
             # test that an incorrect username does not work - should take around one second
             start_time = time.time()
             data = {'email': 'not.b.quayle-email.com',
                     'password': 'password'}
-            response = client.post('/login/', data=data, follow_redirects=True)
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
             time_diff = time.time() - start_time
 
             self.assertNotIn(b'<strong>User:</strong> bquayle<br />', response.data)
+            self.assertIn(b'Incorrect Login Details, 4 attempts remaining', response.data)
             self.assertLess(0.95, time_diff)
             self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
@@ -116,12 +126,36 @@ class MyTestCase(unittest.TestCase):
             start_time = time.time()
             data = {'email': 'b.quayle-email.com',
                     'password': 'AnIncorrectPassword'}
-            response = client.post('/login/', data=data, follow_redirects=True)
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
             time_diff = time.time() - start_time
 
             self.assertNotIn(b'<strong>User:</strong> bquayle<br />', response.data)
+            self.assertIn(b'Incorrect Login Details, 3 attempts remaining', response.data)
             self.assertLess(0.95, time_diff)
             self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
+
+            # use up the remaining attempts
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Incorrect Login Details, 2 attempts remaining', response.data)
+
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Incorrect Login Details, 1 attempts remaining', response.data)
+
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Too many login attempts. Login disabled for 15 minutes.', response.data)
+
+            # change stored time to simulate >15 minutes passing
+            with app.app_context():
+                twenty_minutes_ago = datetime.now() - timedelta(minutes=20)
+                db.update_db("UPDATE loginattempts SET lockouttime=? WHERE ip=?", (twenty_minutes_ago, ip))
+
+            # should now reset attempts
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Incorrect Login Details, 4 attempts remaining', response.data)
+
+            # clear loginattempts
+            with app.app_context():
+                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip, ))
 
     def test_new_post(self):
         with app.test_client() as client:
