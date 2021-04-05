@@ -31,7 +31,7 @@ class Emailer:
         self._credential_file_location = "emailcreds.txt"    # TODO store creds in memory?
         try:
             with open(self._credential_file_location) as file:
-                creds = file.read().split(",", 1)  # Credentials file must be in the form 'username,password'
+                creds = file.read().split(",", 1)  # Credentials file must be in the form 'email,password'
                 self._account_name = creds[0]
                 self._account_password = creds[1]
         except FileNotFoundError:

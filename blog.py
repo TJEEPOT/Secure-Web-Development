@@ -92,29 +92,27 @@ def users_posts(uname=None):
 @app.route('/login/', methods=['GET', 'POST'])
 @std_context
 def login():
-    username = request.form.get('username', '')
-    password = request.form.get('password', '')
-    context = request.context
-
-    if len(username) < 1 and len(password) < 1:
+    if request.method == 'GET':
+        context = request.context
         return render_template('auth/login.html', **context)
 
-    user_id = db.get_login(username, password)
-    if user_id is not None:
-        session['userid'] = user_id
-        session['username'] = username
-        uid = session['userid']
-        two_factor = db.query_db('SELECT usetwofactor, email FROM users WHERE userid =?', (uid,), one=True)
-        url = 'index'
-        if two_factor['usetwofactor'] == 1:
-            url = emailer.send_two_factor(uid, two_factor['email'])
-        else:
-            session['validated'] = True
+    email = request.form.get('email', '')
+    password = request.form.get('password', '')
 
-        return redirect(url_for(url))
-    else:
-        # Return incorrect details
+    user_id, username = db.get_login(email, password)
+    if user_id is None or username is None:
         return redirect(url_for('login_fail', error='Incorrect Login Details'))
+
+    session['userid'] = user_id
+    session['username'] = username
+    two_factor = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (user_id,), one=True)
+    url = 'index'
+    if two_factor['usetwofactor'] == 1:
+        url = emailer.send_two_factor(user_id, email)
+    else:
+        session['validated'] = True
+
+    return redirect(url_for(url))
 
 
 @app.route("/confirmation/", methods=['GET', 'POST'])
@@ -179,7 +177,7 @@ def login_fail():
 @app.route('/logout/')
 def logout():
     session.pop('userid', None)
-    session.pop('username', None)
+    session.pop('email', None)
     session.pop('validated', None)
     session.pop('loggedin', None)
     return redirect('/')
@@ -196,7 +194,7 @@ def create_account():
     password = request.form.get('password', '')
 
     db.add_user(name, email, username, password)
-    # TODO: Should probably check here that the insert was a success before sending a confirmation. If the username
+    # TODO: Should probably check here that the insert was a success before sending a confirmation. If the email
     #  exists, it should tell the user, if the email exists, it should email a password recovery to the user -MS
     # send_confirmation_email()
 
@@ -211,7 +209,6 @@ def new_post():
         return redirect(url_for('login'))
 
     userid = session['userid']
-    print(userid)
     context = request.context
 
     if request.method == 'GET':

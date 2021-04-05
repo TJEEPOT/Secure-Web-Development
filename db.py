@@ -83,39 +83,44 @@ def get_user(username):
     return account
 
 
-def get_login(username, password):
+def get_login(email, password):
     start_time = time.time()
     # Return the user's salt from the db or None if not found
-    query = "SELECT salt FROM users WHERE username=?"
-    salt = query_db(query, (username,), one=True)
+    query = "SELECT salt FROM users WHERE email=?"
+    salt = query_db(query, (email,), one=True)
     if salt is None:
         finish_time = time.time()
         processing_time = finish_time - start_time
         time.sleep(max((1 - processing_time), 0))  # we want this entire function to take at least one second
-        return None
+        return None, None
 
     salt = salt['salt']
     password = auth.ug4_hash(password + salt + PEPPER)
 
-    query = "SELECT userid FROM users WHERE username=? AND password=?"
-    user_id = query_db(query, (username, password), one=True)
-    if user_id is not None:
-        user_id = user_id['userid']
+    query = "SELECT userid, username FROM users WHERE email=? AND password=?"
+    details = query_db(query, (email, password), one=True)
+    user_id = None
+    username = None
+
+    if details:
+        user_id = details['userid']
+        username = details['username']
 
     finish_time = time.time()
     processing_time = finish_time - start_time
     time.sleep(max((1 - processing_time), 0))  # as above, extend processing time to at least one second
 
-    return user_id
+    return user_id, username
 
 
 def add_user(name, email, username, password):
     start_time = time.time()
-    # first check if the user exists
+    # check if the user exists
     query = "SELECT userid FROM users WHERE email=?"
     email_exists = query_db(query, (email,))
     query = "SELECT userid FROM users WHERE username=?"
     username_exists = query_db(query, (username,))
+
     if email_exists or username_exists:
         finish_time = time.time()
         processing_time = finish_time - start_time
