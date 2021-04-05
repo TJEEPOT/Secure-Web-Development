@@ -85,7 +85,7 @@ def users_posts(uname=None):
 
     cid = cid['userid']
     context = request.context
-    context['posts'] = map(fix, db.get_posts(cid))
+    context['posts'] = map(fix, db.query_db(query, arg))
     return render_template('user_posts.html', **context)
 
 
@@ -237,6 +237,7 @@ def reset():
 
     exists = db.get_email(email)
     if not exists:
+
         return render_template('auth/no_email.html', **context)
 
     context['email'] = email
@@ -250,7 +251,8 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    users = db.get_users(search)
+    query = db.get_users(search)
+    users = db.query_db(query)
     # for user in users:
     context['users'] = users
     context['query'] = search
