@@ -9,6 +9,9 @@ History : 25/03/2021 - v1.0 - Load basic project file.
           31/03/2021 - v1.1 - Completed MD2 and UD4 hash implementations with helper functions and timer test harness
           31/03/2021 - v1.2 - Added function to generate salts
 """
+
+import db, random, string
+
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
@@ -247,4 +250,3 @@ if __name__ == "__main__":
     print(ug4_hash("password"))
     end = time.perf_counter()
     print("ug4 time taken: ", end - start)
-
