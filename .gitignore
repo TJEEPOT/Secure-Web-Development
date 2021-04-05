@@ -130,3 +130,6 @@ dmypy.json
 
 # IDE
 .idea
+
+# Coverage reports
+tests/coverage/*
