@@ -17,12 +17,15 @@ __status__ = "Development"  # or "Production"
 
 import datetime
 import re
+import secrets
+import string
 from functools import wraps
+
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 import db
 import emailer
-
+import validation
 
 app = Flask(__name__)
 
@@ -92,6 +95,12 @@ def users_posts(uname=None):
 @app.route('/login/', methods=['GET', 'POST'])
 @std_context
 def login():
+    # CS: Capture IP address
+    ip_address = request.remote_addr
+    # CS: Insert it if it doesn't exist
+    db.update_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
+    # CS: Get current login attempts
+    login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,))[0]['attempts']
     username = request.form.get('username', '')
     password = request.form.get('password', '')
     context = request.context
@@ -104,6 +113,29 @@ def login():
         session['userid'] = user_id
         session['username'] = username
         uid = session['userid']
+        uses_two_factor = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (uid,))[0]['usetwofactor']
+        url = 'index'
+        if uses_two_factor:
+            #user_email = db.query_db("SELECT email FROM users WHERE userid =?", (uid,))[0]['email']
+            user_email = "dsscw2blogacc@gmail.com"  # Debug only (user emails are fake in current db)
+            if validation.validate_email(user_email):
+                code = ""
+                selection = string.ascii_letters
+                for x in range(0, 6):
+                    code += secrets.choice(selection)   # TODO secrets library used (not sure if allowed)
+
+                db.set_two_factor(uid, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
+                # Print code to console for debug
+                print(db.query_db("SELECT * FROM twofactor WHERE user = ?", (uid,)))
+                # TODO This was intended to be reusable by blog.py, creating and destroying is meh
+                # following two lines need to be active in real version (disabled for testing to prevent spam)
+                #e = emailer.Emailer()
+                #e.send_email(user_email, "Two Factor Code", code)
+
+                url = 'verify_code'
+            else:
+                # user email is invalid THIS SHOULD ONLY HAPPEN WITH THE FAKE TEST USERS
+                print(f"User email is invalid: {user_email}")
         two_factor = db.query_db('SELECT usetwofactor, email FROM users WHERE userid =?', (uid,), one=True)
         url = 'index'
         if two_factor['usetwofactor'] == 1:
@@ -113,8 +145,31 @@ def login():
 
         return redirect(url_for(url))
     else:
-        # Return incorrect details
-        return redirect(url_for('login_fail', error='Incorrect Login Details'))
+        # CS: Update loginattempts for this IP
+        login_attempts += 1
+        db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (login_attempts, ip_address,))
+        if login_attempts > 5:
+            # CS: Check lockout time for this IP
+            lockout_time = db.query_db('SELECT lockouttime FROM loginattempts WHERE ip =?', (ip_address,))[0]['lockouttime']
+            if lockout_time is not None:
+                lockout_time = datetime.datetime.strptime(lockout_time, '%Y-%m-%d %H:%M:%S.%f')
+            current_time = datetime.datetime.now()
+            delta = datetime.timedelta(minutes=15)
+            if lockout_time is None:
+                # CS: Set lockout time to current time
+                db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address,))
+                return redirect(url_for('login_fail', error='Too many incorrect login attempts. Login diabled for 15 minutes.'))
+            elif current_time - delta <= lockout_time:
+                # CS: Set lockout time to current time
+                db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address,))
+                return redirect(url_for('login_fail', error='Too many incorrect login attempts. Login diabled for 15 minutes.'))
+            else:
+                # CS: Reset the attempts for this IP if it's been more than 15 mins
+                db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (1, ip_address,))
+                return redirect(url_for('login_fail', error='Incorrect Login Details'))
+        else:
+            # Return incorrect details
+            return redirect(url_for('login_fail', error='Incorrect Login Details'))
 
 
 @app.route("/confirmation/", methods=['GET', 'POST'])
@@ -236,7 +291,7 @@ def reset():
         return render_template('auth/reset_request.html')
 
     exists = db.get_email(email)
-
+    
     if not exists:
         return render_template('auth/no_email.html', **context)
 
