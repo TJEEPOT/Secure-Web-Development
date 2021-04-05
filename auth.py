@@ -10,8 +10,6 @@ History : 25/03/2021 - v1.0 - Load basic project file.
           31/03/2021 - v1.2 - Added function to generate salts
 """
 
-import db, random, string
-
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]

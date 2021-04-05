@@ -20,7 +20,6 @@ __status__ = "Development"  # or "Production"
 import os
 import sqlite3
 import time
-
 from flask import g
 
 import auth
@@ -56,16 +55,27 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
-def update_db(query, args=()):
-    cur = get_db().cursor()
+def insert_db(query, args=()):
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute(query, args)
-    get_db().commit()
-
-def get_salt(username):
-    pass
+    conn.commit()
 
 
-# TODO: This won't be needed when get_salt() is implemented -MS
+def update_db(query, args=()):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(query, args)
+    conn.commit()
+
+
+def del_from_db(query, args=()):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(query, args)
+    conn.commit()
+
+
 # TODO: Rewrite (Issue 27) -MS
 def get_user(username):
     query = "SELECT userid FROM users WHERE username=?"
@@ -81,7 +91,7 @@ def get_login(username, password):
     if salt is None:
         finish_time = time.time()
         processing_time = finish_time - start_time
-        time.sleep(1 - processing_time)  # we want this entire function to take one second
+        time.sleep(max((1 - processing_time), 0))  # we want this entire function to take at least one second
         return None
 
     salt = salt['salt']
@@ -94,7 +104,7 @@ def get_login(username, password):
 
     finish_time = time.time()
     processing_time = finish_time - start_time
-    time.sleep(1 - processing_time)  # as above, extend processing time to one second
+    time.sleep(max((1 - processing_time), 0))  # as above, extend processing time to at least one second
 
     return user_id
 
@@ -109,7 +119,7 @@ def add_user(name, email, username, password):
     if email_exists or username_exists:
         finish_time = time.time()
         processing_time = finish_time - start_time
-        time.sleep(1 - processing_time)  # conceal if the user already exists
+        time.sleep(max((1 - processing_time), 0))  # conceal if the user already exists
         return False
 
     # if it's a new user, build their salt and hash and add them to the db
@@ -117,12 +127,11 @@ def add_user(name, email, username, password):
     password = password + salt + PEPPER
     pw_hash = auth.ug4_hash(password)
     query = "INSERT INTO users (username, name, password, email, salt) VALUES (?,?,?,?,?)"
-    query_db(query, (username, name, pw_hash, email, salt))
-    get_db().commit()
+    insert_db(query, (username, name, pw_hash, email, salt))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
-    time.sleep(1 - processing_time)  # ensure the processing time remains one second
+    time.sleep(max((1 - processing_time), 0))  # ensure the processing time remains at least one second
     return True
 
 
@@ -133,39 +142,47 @@ def get_all_posts():
 
 # TODO: Rewrite (Issue 27) -MS
 def get_posts(cid):
-    query = 'SELECT date,title,content FROM posts WHERE creator=%s ORDER BY date DESC' % cid
-    return query
+    query = 'SELECT date,title,content FROM posts WHERE creator=? ORDER BY date DESC'
+    posts = query_db(query, (cid,))
+    return posts
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def add_post(content, date, title, userid):
-    query = "INSERT INTO posts (creator, date, title, content) VALUES ('%s',%d,'%s','%s')" % (
-        userid, date, title, content)
-    query_db(query)
-    get_db().commit()
+    query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
+    insert_db(query, (userid, date, title, content))
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def get_email(email):
-    query = "SELECT email FROM users WHERE email='%s'" % email
-    return query
+    query = "SELECT email FROM users WHERE email=?"
+    email = query_db(query, (email,), one=True)
+    return email
 
 
-# TODO: Rewrite db stuff (Issue 27) -MS
+# TODO: Rewrite db stuff (Issue 27) and especially for validation -MS
 def get_users(search):
-    query = "SELECT username FROM users WHERE username LIKE '%%%s%%';" % search
-    return query
+    query = "SELECT username FROM users WHERE username LIKE ?"
+    users = query_db(query, ('%'+search+'%',))
+    return users
 
 
-def set_two_factor(userid: str, datetime :str, code: str):
+def get_two_factor(uid):
+    query = "SELECT * FROM twofactor WHERE user = ?"
+    result = query_db(query, (uid,), one=True)
+    return result
+
+
+def set_two_factor(userid: str, datetime: str, code: str):
     query = f"INSERT or REPLACE INTO twofactor VALUES (?,?,?,?)"
-    update_db(query, (userid, datetime, code, 3))
+    insert_db(query, (userid, datetime, code, 3))
 
 
 def del_two_factor(userid: str):
     query = "DELETE FROM twofactor WHERE user=?"
-    update_db(query, (userid,))
+    del_from_db(query, (userid,))
+
 
 def tick_down_two_factor_attempts(userid: str):
-    current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?",(userid,))[0]['attempts']
-    update_db("UPDATE twofactor SET attempts =? WHERE user =?", (current_attempts-1, userid))
+    current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?", (userid,), one=True)['attempts']
+    update_db("UPDATE twofactor SET attempts =? WHERE user =?", ((current_attempts - 1), userid))

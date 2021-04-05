@@ -16,22 +16,17 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
-import string
+import re
 import secrets
-
-import sqlite3
+import string
 from functools import wraps
 
 import flask
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
-
-from functools import wraps
 import db
 import emailer
 import validation
-
-from flask import Flask, g, render_template, redirect, request, session, url_for
 
 app = Flask(__name__)
 
@@ -85,17 +80,14 @@ def index():
 @std_context
 def users_posts(uname=None):
     cid = db.get_user(uname)
-    if len(cid) < 1:
+    if cid is None:
         return 'User page not found.'
 
-    cid = cid['userid']
-    query = db.get_posts(cid)
-    query = 'SELECT date,title,content FROM posts WHERE creator=? ORDER BY date DESC'
-    arg = (cid,)
     def fix(item):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
 
+    cid = cid['userid']
     context = request.context
     context['posts'] = map(fix, db.query_db(query, arg))
     return render_template('user_posts.html', **context)
@@ -145,6 +137,10 @@ def login():
             else:
                 # user email is invalid THIS SHOULD ONLY HAPPEN WITH THE FAKE TEST USERS
                 print(f"User email is invalid: {user_email}")
+        two_factor = db.query_db('SELECT usetwofactor, email FROM users WHERE userid =?', (uid,), one=True)
+        url = 'index'
+        if two_factor['usetwofactor'] == 1:
+            url = emailer.send_two_factor(uid, two_factor['email'])
         else:
             session['validated'] = True
 
@@ -180,39 +176,50 @@ def login():
 @app.route("/confirmation/", methods=['GET', 'POST'])
 @std_context
 def verify_code():
-    # Function for two factor authentication
-    uid = session['userid']
-    user_code = validation.validate_two_factor(request.form.get('code', ''))
+    """ Two-factor authentication via email OTP """
+    if request.method == 'GET':
+        return render_template('auth/two_factor.html')
 
+    uid = session['userid']
+    user_code = re.match(r"^[\w]{6}$", request.form.get('code', ''))  # Alphanumeric + caps, 6 chars
+
+    # check if two-factor code has been given
+    if not user_code:
+        return render_template('auth/two_factor.html', error='Code is invalid, please try again.')
+
+    # find the two-factor code in the database for this user
+    two_factor = db.get_two_factor(uid)
+
+    # if we're out of time, kick them back to the login screen
     def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
         db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
-        mins = round((time_now - db_time).total_seconds() / 60)   # Why does timedelta not have a get minutes func!!!!1
+        mins = round((curr_time - db_time).total_seconds() / 60)   # Why does timedelta not have a get minutes func!!!!1
         limit = 5  # Max time for codes to work in minutes
         return mins < limit
 
-    if user_code:
-        row = db.query_db("SELECT * FROM twofactor WHERE user = ?", (uid,))
-        attempts_remaining = (row[0]['attempts'])
-        original_time = row[0]['timestamp']
-        time_now = datetime.datetime.now()
+    original_time = two_factor['timestamp']
+    time_now = datetime.datetime.now()
+    if not within_time_limit(original_time, time_now):
+        return render_template('auth/login_fail.html', error='Code has expired. Please login again')
 
-        if attempts_remaining > 0:
-            if within_time_limit(original_time, time_now):
-                db_code = db.query_db("SELECT code FROM twofactor WHERE user=?", (uid,))[0]['code']
-                if user_code == db_code:
-                    # success
-                    session['validated'] = True
-                    return redirect(url_for('index'))
-                else:
-                    # fail
-                    db.tick_down_two_factor_attempts(uid)
-                    return render_template('auth/two_factor.html',
-                                           message=f'Invalid code. Attempts remaining {attempts_remaining-1}')
-            else:
-                return render_template('auth/login_fail.html', error='Code has expired. Please login again')
-        else:
+    # check the given code and fail them if it doesn't match
+    attempts_remaining = two_factor['attempts']
+    db_code = two_factor['code']
+
+    if user_code.string != db_code:
+        # if they're on the last attempt and got it wrong, kick them back to the login. Lockout too, perhaps?
+        if attempts_remaining == 1:
+            db.del_two_factor(uid)  # remove this 2fa from the db to prevent possible attacks
             return render_template('auth/login_fail.html', error='Too many failed attempts')
-    return render_template('auth/two_factor.html', error='Code has expired or is invalid')
+
+        db.tick_down_two_factor_attempts(uid)
+        error = f'Incorrect code. Attempts remaining {attempts_remaining - 1}'
+        return render_template('auth/two_factor.html', error=error)
+
+    # success
+    session['validated'] = True
+    db.del_two_factor(uid)  # remove that code from the db since it's been used
+    return redirect(url_for('index'))
 
 
 # I don't think this code needs moving anywhere since I think it's a flask thing. -MS
@@ -284,17 +291,16 @@ def reset():
     if email == '':
         return render_template('auth/reset_request.html')
 
-    query = db.get_email(email)
-    exists = db.query_db(query)
-    if len(exists) < 1:
+    exists = db.get_email(email)
+    if not exists:
+
         return render_template('auth/no_email.html', **context)
-    else:
-        context['email'] = email
-        return render_template('auth/sent_reset.html', **context)
+
+    context['email'] = email
+    return render_template('auth/sent_reset.html', **context)
 
 
-# TODO: Rewrite db stuff (Issue 27) -MS
-# might want to have these link to the user pages too?
+# might want to have these link to the user pages too? -MS
 @app.route('/search/')
 @std_context
 def search_page():
@@ -307,18 +313,6 @@ def search_page():
     context['users'] = users
     context['query'] = search
     return render_template('search_results.html', **context)
-
-
-# TODO: might want to remove this (Issue 4) -MS
-@app.route('/resetdb/<token>')
-def reset_db(token=None):
-    if token == 'secret42':
-        import create_db
-        create_db.delete_db()
-        create_db.create()
-        return 'Database reset'
-    else:
-        return 'Nope', 401
 
 
 if __name__ == '__main__':
