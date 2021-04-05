@@ -129,16 +129,15 @@ def verify_code():
 
     # check if two-factor code has been given
     if not user_code:
-        print(uid, user_code)
         return render_template('auth/two_factor.html', error='Code is invalid, please try again.')
 
     # find the two-factor code in the database for this user
-    two_factor = db.query_db("SELECT * FROM twofactor WHERE user = ?", (uid,), one=True)
+    two_factor = db.get_two_factor(uid)
 
     # if we're out of time, kick them back to the login screen
     def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
         db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
-        mins = round((time_now - db_time).total_seconds() / 60)   # Why does timedelta not have a get minutes func!!!!1
+        mins = round((curr_time - db_time).total_seconds() / 60)   # Why does timedelta not have a get minutes func!!!!1
         limit = 5  # Max time for codes to work in minutes
         return mins < limit
 
@@ -148,20 +147,22 @@ def verify_code():
         return render_template('auth/login_fail.html', error='Code has expired. Please login again')
 
     # check the given code and fail them if it doesn't match
-    attempts_remaining = (two_factor['attempts'])
-    db_code = db.query_db("SELECT code FROM twofactor WHERE user=?", (uid,), one=True)['code']
+    attempts_remaining = two_factor['attempts']
+    db_code = two_factor['code']
 
-    if user_code != db_code:
+    if user_code.string != db_code:
         # if they're on the last attempt and got it wrong, kick them back to the login. Lockout too, perhaps?
         if attempts_remaining == 1:
+            db.del_two_factor(uid)  # remove this 2fa from the db to prevent possible attacks
             return render_template('auth/login_fail.html', error='Too many failed attempts')
 
         db.tick_down_two_factor_attempts(uid)
-        error = f'Invalid code. Attempts remaining {attempts_remaining - 1}'
+        error = f'Incorrect code. Attempts remaining {attempts_remaining - 1}'
         return render_template('auth/two_factor.html', error=error)
 
     # success
     session['validated'] = True
+    db.del_two_factor(uid)  # remove that code from the db since it's been used
     return redirect(url_for('index'))
 
 
@@ -235,11 +236,11 @@ def reset():
         return render_template('auth/reset_request.html')
 
     exists = db.get_email(email)
-    if len(exists) < 1:
+    if not exists:
         return render_template('auth/no_email.html', **context)
-    else:
-        context['email'] = email
-        return render_template('auth/sent_reset.html', **context)
+
+    context['email'] = email
+    return render_template('auth/sent_reset.html', **context)
 
 
 # might want to have these link to the user pages too? -MS
