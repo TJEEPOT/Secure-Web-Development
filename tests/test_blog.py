@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import time
 import unittest
 
@@ -8,21 +9,32 @@ from blog import app
 # more tests should be included for common attacks before this goes live
 
 
+def delete_user(user_id):
+    with app.app_context():
+        query = """ DELETE FROM users WHERE userid=? """
+        user_id = user_id['userid']
+        db.del_from_db(query, (user_id,))
+
+
 class MyTestCase(unittest.TestCase):
     def test_create_account(self):
         client = app.test_client(self)
-        data = {'name': 'test account',
-                'email': 'test.account@atestingemail.tk',
-                'username': 'testing',
-                'password': 'test_password1'}
+
+        # get the account creation page
+        response = client.get('/create_account/', follow_redirects=True)
+        self.assertIn(b'<h1>Create New Account</h1>', response.data)
 
         # ensure the account doesn't exist
         with app.app_context():
             user_id = db.get_user('testing')
             if user_id:
-                self.delete_user(user_id)
+                delete_user(user_id)
 
         # create the account - this should take around one second
+        data = {'name': 'test account',
+                'email': 'test.account@atestingemail.tk',
+                'username': 'testing',
+                'password': 'test_password1'}
         start_time = time.time()
         response = client.post('/create_account/', data=data, follow_redirects=True)
         time_diff = time.time() - start_time
@@ -46,14 +58,7 @@ class MyTestCase(unittest.TestCase):
         self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
         # clean up the db
-        self.delete_user(user_id)
-
-    def delete_user(self, user_id):
-        with app.app_context():
-            query = """ DELETE FROM users WHERE userid=? """
-            user_id = user_id['userid']
-            db.query_db(query, (user_id,))
-            db.get_db().commit()
+        delete_user(user_id)
 
     def test_index(self):
         response = app.test_client(self).get('/')
@@ -120,9 +125,9 @@ class MyTestCase(unittest.TestCase):
 
     def test_new_post(self):
         with app.test_client() as client:
-            # without an active session, we should get a redirect page
-            response = client.get('/post/')
-            self.assertIn(b'<h1>Redirecting...</h1>', response.data)
+            # without an active session, we should be redirected to the login page
+            response = client.get('/post/', follow_redirects=True)
+            self.assertIn(b'<input name="username" id="username" maxlength="32" />', response.data)
 
             # log in a user and ensure the test post doesn't exist yet
             data = {'username': 'bquayle',
@@ -148,8 +153,7 @@ class MyTestCase(unittest.TestCase):
             # clean up the db
             with app.app_context():
                 query = """ DELETE FROM posts WHERE title=? """
-                db.query_db(query, ('test title',))
-                db.get_db().commit()
+                db.del_from_db(query, ('test title',))
 
     def test_reset_password(self):
         with app.test_client() as client:
@@ -165,9 +169,10 @@ class MyTestCase(unittest.TestCase):
 
             # TODO: submitting an email address not registered to an account should show the same result page as a
             #  registered email, the email sent should then invite them to sign up with an account.
-            # data = {'email': 'this.is.not.a.registered.email@someemail.uk'}
-            # response = client.post('/reset/', data=data, follow_redirects=True)
+            data = {'email': 'this.is.not.a.registered.email@someemail.uk'}
+            response = client.post('/reset/', data=data, follow_redirects=True)
             # self.assertIn(b'<p>Sent an email to this.is.not.a.registered.email@someemail.uk.</p>', response.data)
+            self.assertIn(b'<p>No account with that email address.</p>', response.data)
 
             # TODO: simulate clicking on the reset email link and invite email link to ensure they work correctly
 
@@ -194,6 +199,79 @@ class MyTestCase(unittest.TestCase):
             self.assertIn(b'<p>Results for: ki</p>', response.data)
             self.assertIn(b'<p>aking</p>', response.data)
             self.assertIn(b'<p>tkimler</p>', response.data)
+
+    def test_two_factor_authentication_success(self):
+        with app.test_client() as client:
+            # log in as a user that has 2fa enabled
+            data = {'username': 'aking',
+                    'password': 'password'}
+            client.post('/login/', data=data, follow_redirects=True)
+
+            # the token is sent at this point, so we can pull it out of the database now. This is equivalent to the
+            # user receiving the email and looking at the code.
+            two_factor = ''
+            with app.app_context():
+                two_factor = db.get_two_factor(0)['code']  # we know aking is user 0
+
+            # ensure the page is returned from a get request with no errors
+            response = client.get('/confirmation/')
+            self.assertIn(b'<h1>Confirmation</h1>', response.data)
+            self.assertNotIn(b'invalid', response.data)
+            self.assertNotIn(b'Incorrect', response.data)
+            self.assertNotIn(b'failed', response.data)
+            self.assertNotIn(b'expired', response.data)
+
+            # test that entering a correct code results in authentication and passing to the index page
+            data = {'code': two_factor}
+            response = client.post('/confirmation/', data=data, follow_redirects=True)
+            self.assertIn(b'<title>Index</title>', response.data)
+
+            # the code should no longer be in the database
+            with app.app_context():
+                two_factor = db.get_two_factor(0)
+                self.assertIsNone(two_factor)
+
+    def test_two_factor_authentication_failure(self):
+        with app.test_client() as client:
+            # log in as a user that has 2fa enabled
+            data = {'username': 'aking',
+                    'password': 'password'}
+            client.post('/login/', data=data, follow_redirects=True)
+
+            # ensure if the user inputs a code too short, it is rejected without changing the attempts remaining
+            data = {'code': 'a'}
+            response = client.post('/confirmation/', data=data, follow_redirects=True)
+            self.assertIn(b'Code is invalid, please try again.', response.data)
+
+            # ensure if the wrong code is entered, it reduces the number of tries remaining
+            data = {'code': 'aaaaaa'}
+            response = client.post('/confirmation/', data=data, follow_redirects=True)
+            self.assertIn(b'Incorrect code. Attempts remaining 2', response.data)
+
+            # adjust the timestamp of the code so the request gives an out-of-time error
+            with app.app_context():
+                ten_minutes_ago = datetime.now() - timedelta(minutes=10)
+                time_formatted = ten_minutes_ago.strftime('%Y-%m-%d %H:%M:%S')  # remove the microseconds
+                ten_minutes_ago = datetime.strptime(time_formatted, '%Y-%m-%d %H:%M:%S')
+                query = "UPDATE twofactor SET timestamp=? WHERE user=0"
+                db.update_db(query, (ten_minutes_ago,))
+
+            response = client.post('/confirmation/', data=data, follow_redirects=True)
+            self.assertIn(b'Code has expired. Please login again', response.data)
+
+            # return the timestamp to now
+            with app.app_context():
+                now = datetime.now()
+                now_formatted = now.strftime('%Y-%m-%d %H:%M:%S')  # remove the microseconds
+                now = datetime.strptime(now_formatted, '%Y-%m-%d %H:%M:%S')
+                query = "UPDATE twofactor SET timestamp=? WHERE user=0"
+                db.update_db(query, (now,))
+
+            # use up the remaining two attempts
+            response = client.post('/confirmation/', data=data, follow_redirects=True)
+            self.assertIn(b'Incorrect code. Attempts remaining 1', response.data)
+            response = client.post('/confirmation/', data=data, follow_redirects=True)
+            self.assertIn(b'Too many failed attempts', response.data)
 
 
 if __name__ == '__main__':
