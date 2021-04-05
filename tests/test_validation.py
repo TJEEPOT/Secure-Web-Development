@@ -21,9 +21,8 @@ class TestValidation(unittest.TestCase):
         self.assertIsNone(v.validate_password("pass"))
 
     def test_password_above_max(self):
-        self.assertIsNone(
-            v.validate_password(
-                "oknowthisisareallylongpasswordthatnooneshouldeverhavebecauseitsjustannoyingatthispoint"))
+        password = "oknowthisisareallylongpasswordthatnooneshouldeverhavebecauseitsjustannoyingatthispoint"
+        self.assertIsNone(v.validate_password(password))
 
     # username tests
     def test_username_min(self):
@@ -57,28 +56,7 @@ class TestValidation(unittest.TestCase):
         self.assertIsNotNone(v.validate_username("Éeee"))
         self.assertIsNotNone(v.validate_username("用户名"))
 
-    # two factor tests
-
-    def test_two_factor_min(self):
-        self.assertEqual("abcdef",v.validate_two_factor("abcdef"))
-
-    def test_two_factor_max(self):
-        self.assertEqual("abcdef1234", v.validate_two_factor("abcdef1234"))
-
-    def test_two_factor_below_min(self):
-        self.assertIsNone(v.validate_two_factor("abc"))
-
-    def test_two_factor_above_max(self):
-        self.assertIsNone(v.validate_two_factor("abcdef123456789"))
-
-    def test_two_factor_invalid_characters(self):
-        self.assertIsNone(v.validate_two_factor("` or 1=1;--"))
-
-    def test_two_factor_caps(self):
-        self.assertEqual("AbCdEf", v.validate_two_factor("AbCdEf"))
-
     # email tests
-
     def test_email_short(self):
         email = "test@test.com"
         self.assertEqual(email, v.validate_email(email))
@@ -98,8 +76,8 @@ class TestValidation(unittest.TestCase):
     def test_email_short(self):
         email = "' or 1=1;--"
         self.assertIsNone(v.validate_email(email))
-    # post tests
 
+    # post tests
     def test_post_xss_length(self):
         self.assertIsNotNone(v.validate_post('<script>alert("xss");</script>'))
 
@@ -118,7 +96,6 @@ class TestValidation(unittest.TestCase):
                          v.validate_post("&<>\"'%*+,-/;=^|"))
 
     # search tests
-
     def test_search_xss_character_encoding(self):
         self.assertEqual("&#38;&#60;&#62;&#34;&#39;&#37;&#42;&#43;&#44;&#45;&#47;&#59;&#61;&#94;&#124;",
                          v.validate_search("&<>\"'%*+,-/;=^|"))
