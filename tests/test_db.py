@@ -36,7 +36,7 @@ class MyTestCase(unittest.TestCase):
 
             self.assertEqual(0, account)
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.15, time_diff)
+            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
             # check the function returns None on incorrect username in around one second
             start_time = time.time()
@@ -45,7 +45,7 @@ class MyTestCase(unittest.TestCase):
 
             self.assertIsNone(account)
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.15, time_diff)
+            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
             # check the function returns None on incorrect password in around one second
             start_time = time.time()
@@ -54,7 +54,7 @@ class MyTestCase(unittest.TestCase):
 
             self.assertIsNone(account)
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.15, time_diff)
+            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
     def test_get_all_posts(self):
         with app.app_context():

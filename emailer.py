@@ -15,16 +15,20 @@ __version__ = "1.0"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import secrets
 import smtplib
+import string
 from email.message import EmailMessage
 
 import datetime
 import time
+import validation
+import db
+
 
 class Emailer:
-
     def __init__(self):
-        self._credential_file_location = "emailcreds.txt"    # TODO store creds in DB?
+        self._credential_file_location = "emailcreds.txt"    # TODO store creds in memory?
         try:
             with open(self._credential_file_location) as file:
                 creds = file.read().split(",", 1)  # Credentials file must be in the form 'username,password'
@@ -47,6 +51,33 @@ class Emailer:
         mail_server.close()
 
 
+def send_two_factor(uid, user_email):
+    user_email = "dsscw2blogacc@gmail.com"  # TODO: Debug only (user emails are fake in current db)
+    if not validation.validate_email(user_email):
+        # user email is invalid THIS SHOULD ONLY HAPPEN WITH THE FAKE TEST USERS
+        print(f"User email is invalid: {user_email}")
+        return 'login_fail'
+
+    # delete existing codes for this user
+    db.del_two_factor(uid)
+
+    # build and save a new code
+    code = ""
+    selection = string.ascii_letters
+    for x in range(0, 6):
+        code += secrets.choice(selection)  # TODO secrets library used (not sure if allowed)
+    db.set_two_factor(uid, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
+
+    # Print code to console for debug
+    print(db.get_two_factor(uid))
+    # TODO This was intended to be reusable by blog.py, creating and destroying is meh
+    # following two lines need to be active in real version (disabled for testing to prevent spam)
+    # e = Emailer()
+    # e.send_email(user_email, "Two Factor Code", code)
+
+    return 'verify_code'
+
+
 if __name__ == '__main__':
     time_now = datetime.datetime.now()
     time.sleep(3)
@@ -60,3 +91,5 @@ if __name__ == '__main__':
     print(secs >= 3)
     print(secs)
     print(mins)
+
+
