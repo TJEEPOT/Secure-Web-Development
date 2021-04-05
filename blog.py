@@ -89,7 +89,7 @@ def users_posts(uname=None):
 
     cid = cid['userid']
     context = request.context
-    context['posts'] = map(fix, db.query_db(query, arg))
+    context['posts'] = map(fix, db.get_posts(cid))
     return render_template('user_posts.html', **context)
 
 
@@ -307,8 +307,7 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    query = db.get_users(search)
-    users = db.query_db(query)
+    users = db.get_users(search)
     # for user in users:
     context['users'] = users
     context['query'] = search
