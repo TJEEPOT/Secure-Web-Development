@@ -277,10 +277,10 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    users = db.get_users(search)
+    users, validated_search = db.get_users(search)
     # for user in users:
     context['users'] = users
-    context['query'] = search
+    context['query'] = validated_search
     return render_template('search_results.html', **context)
 
 

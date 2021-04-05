@@ -165,11 +165,11 @@ def get_email(email):
     return email
 
 
-# TODO: Rewrite db stuff (Issue 27) and especially for validation -MS
 def get_users(search):
     query = "SELECT username FROM users WHERE username LIKE ?"
-    users = query_db(query, ('%'+search+'%',))
-    return users
+    validated_search = validation.validate_search(search)
+    users = query_db(query, ('%'+validated_search+'%',))
+    return users, validated_search
 
 
 def get_two_factor(uid):
