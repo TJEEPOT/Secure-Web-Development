@@ -83,6 +83,9 @@ def create():
     # Twofactor table
     c.execute('''CREATE TABLE twofactor (user integer UNIQUE REFERENCES  users(userid), timestamp TEXT, code TEXT, 
         attempts INTEGER default 3)''')
+
+    # CS: Login attempts table
+    c.execute('''CREATE TABLE loginattempts (ip integer UNIQUE, attempts INTEGER default 0, lockouttime TEXT)''')
     db.commit()
 
     user_id = 0
