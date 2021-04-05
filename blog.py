@@ -17,12 +17,14 @@ __status__ = "Development"  # or "Production"
 
 import datetime
 import re
+import secrets
+import string
 from functools import wraps
+
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 import db
 import emailer
-
 
 app = Flask(__name__)
 
@@ -85,34 +87,69 @@ def users_posts(uname=None):
 
     cid = cid['userid']
     context = request.context
-    context['posts'] = map(fix, db.query_db(query, arg))
+    context['posts'] = map(fix, db.get_posts(cid))
     return render_template('user_posts.html', **context)
 
 
 @app.route('/login/', methods=['GET', 'POST'])
 @std_context
 def login():
+
     if request.method == 'GET':
         context = request.context
         return render_template('auth/login.html', **context)
-
+    
+    # CS: Capture IP address
+    ip_address = request.remote_addr
+    # CS: Insert it if it doesn't exist
+    db.update_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
+    # CS: Get current login attempts
+    login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,))[0]['attempts']
     email = request.form.get('email', '')
     password = request.form.get('password', '')
 
     user_id, username = db.get_login(email, password)
-    if user_id is None or username is None:
+    
+    if user_id is not None or username is not None:
+        # valid session
+        session['userid'] = user_id
+        session['username'] = username
+
+        two_factor = db.query_db('SELECT usetwofactor, email FROM users WHERE userid =?', (user_id,), one=True)
+        url = 'index'
+        if two_factor['usetwofactor'] == 1:
+            url = emailer.send_two_factor(user_id, two_factor['email'])
+        else:
+            session['validated'] = True
+        return redirect(url_for(url))
+    
+    # CS: Update loginattempts for this IP
+    login_attempts += 1
+    db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (login_attempts, ip_address))
+
+    if login_attempts <= 5:
         return redirect(url_for('login_fail', error='Incorrect Login Details'))
 
-    session['userid'] = user_id
-    session['username'] = username
-    two_factor = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (user_id,), one=True)
-    url = 'index'
-    if two_factor['usetwofactor'] == 1:
-        url = emailer.send_two_factor(user_id, email)
+    # CS: Check lockout time for this IP
+    lockout_time = db.query_db('SELECT lockouttime FROM loginattempts WHERE ip =?', (ip_address,), one=True)
+    if lockout_time is not None:
+        lockout_time = datetime.datetime.strptime(lockout_time['lockouttime'], '%Y-%m-%d %H:%M:%S.%f')
+    current_time = datetime.datetime.now()
+    delta = datetime.timedelta(minutes=15)
+    
+    if lockout_time is None:
+        # CS: Set lockout time to current time
+        db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address))
+        return redirect(url_for('login_fail', error='Too many incorrect login attempts. Login diabled for 15 minutes.'))
+    elif current_time - delta <= lockout_time:
+        # CS: Set lockout time to current time
+        db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address))
+        return redirect(url_for('login_fail', error='Too many incorrect login attempts. Login diabled for 15 minutes.'))
     else:
-        session['validated'] = True
-
-    return redirect(url_for(url))
+        # CS: Reset the attempts for this IP if it's been more than 15 mins
+        db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (1, ip_address))
+        return redirect(url_for('login_fail', error='Incorrect Login Details'))
+    return redirect(url_for('login_fail', error='Incorrect Login Details'))
 
 
 @app.route("/confirmation/", methods=['GET', 'POST'])
@@ -234,7 +271,6 @@ def reset():
 
     exists = db.get_email(email)
     if not exists:
-
         return render_template('auth/no_email.html', **context)
 
     context['email'] = email
@@ -248,8 +284,7 @@ def search_page():
     context = request.context
     search = request.args.get('s', '')
 
-    query = db.get_users(search)
-    users = db.query_db(query)
+    users = db.get_users(search)
     # for user in users:
     context['users'] = users
     context['query'] = search
