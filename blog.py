@@ -17,8 +17,6 @@ __status__ = "Development"  # or "Production"
 
 import datetime
 import re
-import secrets
-import string
 from functools import wraps
 
 from flask import Flask, g, render_template, redirect, request, session, url_for
@@ -94,7 +92,6 @@ def users_posts(uname=None):
 @app.route('/login/', methods=['GET', 'POST'])
 @std_context
 def login():
-
     if request.method == 'GET':
         context = request.context
         return render_template('auth/login.html', **context)
@@ -102,12 +99,11 @@ def login():
     # CS: Capture IP address
     ip_address = request.remote_addr
     # CS: Insert it if it doesn't exist
-    db.update_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
+    db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
     # CS: Get current login attempts
-    login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,))[0]['attempts']
+    login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,), one=True)['attempts']
     email = request.form.get('email', '')
     password = request.form.get('password', '')
-
     user_id, username = db.get_login(email, password)
     
     if user_id is not None or username is not None:
@@ -127,29 +123,26 @@ def login():
     login_attempts += 1
     db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (login_attempts, ip_address))
 
-    if login_attempts <= 5:
-        return redirect(url_for('login_fail', error='Incorrect Login Details'))
+    if login_attempts < 5:
+        remaining_logins = 5 - login_attempts
+        return redirect(url_for('login_fail', error=f'Incorrect Login Details, {remaining_logins} attempts remaining.'))
 
     # CS: Check lockout time for this IP
-    lockout_time = db.query_db('SELECT lockouttime FROM loginattempts WHERE ip =?', (ip_address,), one=True)
+    query = 'SELECT lockouttime FROM loginattempts WHERE ip =?'
+    lockout_time = db.query_db(query, (ip_address,), one=True)['lockouttime']
     if lockout_time is not None:
-        lockout_time = datetime.datetime.strptime(lockout_time['lockouttime'], '%Y-%m-%d %H:%M:%S.%f')
+        lockout_time = datetime.datetime.strptime(lockout_time, '%Y-%m-%d %H:%M:%S.%f')
     current_time = datetime.datetime.now()
     delta = datetime.timedelta(minutes=15)
     
-    if lockout_time is None:
+    if lockout_time is None or (current_time - delta) <= lockout_time:
         # CS: Set lockout time to current time
         db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address))
-        return redirect(url_for('login_fail', error='Too many incorrect login attempts. Login diabled for 15 minutes.'))
-    elif current_time - delta <= lockout_time:
-        # CS: Set lockout time to current time
-        db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address))
-        return redirect(url_for('login_fail', error='Too many incorrect login attempts. Login diabled for 15 minutes.'))
+        return redirect(url_for('login_fail', error='Too many login attempts. Login disabled for 15 minutes.'))
     else:
         # CS: Reset the attempts for this IP if it's been more than 15 mins
         db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (1, ip_address))
-        return redirect(url_for('login_fail', error='Incorrect Login Details'))
-    return redirect(url_for('login_fail', error='Incorrect Login Details'))
+        return redirect(url_for('login_fail', error='Incorrect Login Details, 4 attempts remaining.'))
 
 
 @app.route("/confirmation/", methods=['GET', 'POST'])
@@ -206,7 +199,7 @@ def verify_code():
 @std_context
 def login_fail():
     context = request.context
-    context['error_msg'] = request.args.get('error', 'Unknown error')
+    context['error'] = request.args.get('error', 'Unknown error')
     return render_template('auth/login_fail.html', **context)
 
 
