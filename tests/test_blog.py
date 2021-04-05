@@ -234,6 +234,16 @@ class MyTestCase(unittest.TestCase):
             self.assertIn(b'<p>aking</p>', response.data)
             self.assertIn(b'<p>tkimler</p>', response.data)
 
+            # a search containing an SQLi will be disarmed
+            query = {'s': "' union all select password from users --"}
+            response = client.get('/search/', query_string=query, follow_redirects=True)
+            self.assertIn(b'<p>Results for: &#39; union all select password from users &#45;&#45;</p>', response.data)
+
+            # a search containing malicious JS code will be disarmed (prevents Reflected XSS)
+            query = {'s': '<script>alert(1)</script>'}
+            response = client.get('/search/', query_string=query, follow_redirects=True)
+            self.assertIn(b'<p>Results for: &#60;script&#62;alert(1)&#60;&#47;script&#62;</p>', response.data)
+
     def test_two_factor_authentication_success(self):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
