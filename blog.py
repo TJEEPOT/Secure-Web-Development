@@ -276,7 +276,7 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
 
-    db.add_post(userid, date, title, content)
+    db.add_post(content, date, title, userid)
     return redirect('/')
 
 
