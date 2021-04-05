@@ -55,12 +55,25 @@ def query_db(query, args=(), one=False):
     return (rv[0] if rv else None) if one else rv
 
 
+def insert_db(query, args=()):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(query, args)
+    conn.commit()
+
+
 def update_db(query, args=()):
     conn = get_db()
     cur = conn.cursor()
     cur.execute(query, args)
     conn.commit()
-    conn.close()
+
+
+def del_from_db(query, args=()):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(query, args)
+    conn.commit()
 
 
 # TODO: Rewrite (Issue 27) -MS
@@ -114,8 +127,7 @@ def add_user(name, email, username, password):
     password = password + salt + PEPPER
     pw_hash = auth.ug4_hash(password)
     query = "INSERT INTO users (username, name, password, email, salt) VALUES (?,?,?,?,?)"
-    query_db(query, (username, name, pw_hash, email, salt))
-    get_db().commit()
+    insert_db(query, (username, name, pw_hash, email, salt))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
@@ -138,31 +150,37 @@ def get_posts(cid):
 # TODO: Rewrite db stuff (Issue 27) -MS
 def add_post(content, date, title, userid):
     query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
-    update_db(query, (userid, date, title, content))
+    insert_db(query, (userid, date, title, content))
 
 
 # TODO: Rewrite db stuff (Issue 27) -MS
 def get_email(email):
     query = "SELECT email FROM users WHERE email=?"
-    email = query_db(query, email, one=True)
+    email = query_db(query, (email,), one=True)
     return email
 
 
 # TODO: Rewrite db stuff (Issue 27) and especially for validation -MS
 def get_users(search):
     query = "SELECT username FROM users WHERE username LIKE ?"
-    users = query_db(query, (search,))
+    users = query_db(query, ('%'+search+'%',))
     return users
+
+
+def get_two_factor(uid):
+    query = "SELECT * FROM twofactor WHERE user = ?"
+    result = query_db(query, (uid,), one=True)
+    return result
 
 
 def set_two_factor(userid: str, datetime: str, code: str):
     query = f"INSERT or REPLACE INTO twofactor VALUES (?,?,?,?)"
-    update_db(query, (userid, datetime, code, 3))
+    insert_db(query, (userid, datetime, code, 3))
 
 
 def del_two_factor(userid: str):
     query = "DELETE FROM twofactor WHERE user=?"
-    update_db(query, (userid,))
+    del_from_db(query, (userid,))
 
 
 def tick_down_two_factor_attempts(userid: str):
