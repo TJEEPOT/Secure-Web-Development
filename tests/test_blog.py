@@ -82,12 +82,12 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # test that no data given returns the login page
             response = client.get('/login/')
-            self.assertIn(b'<input name="username" id="username" maxlength="32" />', response.data)
+            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
             self.assertNotIn(b'Check your email for confirmation', response.data)
 
             # test that a correct username and password work - should return a result in around one second
             start_time = time.time()
-            data = {'username': 'bquayle',
+            data = {'email': 'b.quayle-email.com',
                     'password': 'password'}
             response = client.post('/login/', data=data, follow_redirects=True)
             time_diff = time.time() - start_time
@@ -103,7 +103,7 @@ class MyTestCase(unittest.TestCase):
 
             # test that an incorrect username does not work - should take around one second
             start_time = time.time()
-            data = {'username': 'notbquayle',
+            data = {'email': 'not.b.quayle-email.com',
                     'password': 'password'}
             response = client.post('/login/', data=data, follow_redirects=True)
             time_diff = time.time() - start_time
@@ -114,7 +114,7 @@ class MyTestCase(unittest.TestCase):
 
             # test that an incorrect password does not work - should take around one second
             start_time = time.time()
-            data = {'username': 'bquayle',
+            data = {'email': 'b.quayle-email.com',
                     'password': 'AnIncorrectPassword'}
             response = client.post('/login/', data=data, follow_redirects=True)
             time_diff = time.time() - start_time
@@ -127,10 +127,10 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # without an active session, we should be redirected to the login page
             response = client.get('/post/', follow_redirects=True)
-            self.assertIn(b'<input name="username" id="username" maxlength="32" />', response.data)
+            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
 
             # log in a user and ensure the test post doesn't exist yet
-            data = {'username': 'bquayle',
+            data = {'email': 'b.quayle-email.com',
                     'password': 'password'}
             response = client.post('/login/', data=data, follow_redirects=True)
 
@@ -203,7 +203,7 @@ class MyTestCase(unittest.TestCase):
     def test_two_factor_authentication_success(self):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
-            data = {'username': 'aking',
+            data = {'email': 'a.king-email.com',
                     'password': 'password'}
             client.post('/login/', data=data, follow_redirects=True)
 
@@ -234,7 +234,7 @@ class MyTestCase(unittest.TestCase):
     def test_two_factor_authentication_failure(self):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
-            data = {'username': 'aking',
+            data = {'email': 'a.king-email.com',
                     'password': 'password'}
             client.post('/login/', data=data, follow_redirects=True)
 
