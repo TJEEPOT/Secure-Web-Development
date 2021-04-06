@@ -31,12 +31,11 @@ class MyTestCase(unittest.TestCase):
         with app.app_context():
             # check the account is returned in around one second
             start_time = time.time()
-            account = db.get_login("a.king-email.com", "password")
+            account = db.get_login("a.king@fakeemailservice.abcde", "password")
             time_diff = time.time() - start_time
 
             self.assertEqual((0, 'aking'), account)
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
             # check the function returns None on incorrect username in around one second
             start_time = time.time()
@@ -49,12 +48,11 @@ class MyTestCase(unittest.TestCase):
 
             # check the function returns None on incorrect password in around one second
             start_time = time.time()
-            account = db.get_login("a.king-email.com", "ThisIsNotThePassword")
+            account = db.get_login("a.king@fakeemailservice.abcde", "ThisIsNotThePassword")
             time_diff = time.time() - start_time
 
             self.assertIsNone(account[0])
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
     def test_get_all_posts(self):
         with app.app_context():
