@@ -22,7 +22,7 @@ max_password_length = 64  # ^
 min_username_length = 1  # As restricted by create_db.py
 max_username_length = 32  # ^
 max_post_length = 10000  # Arbitrary choices
-max_search_length = 100  # ^
+max_search_length = 30  # ^
 encoding_list = {
     #    "&": "&#38;",
     ";": "&#59;",
@@ -42,7 +42,7 @@ encoding_list = {
 }
 
 
-# Passwords between 8-64 characters
+# Passwords between 8-64 characters. Do not add additional validation here or it will break peoples existing passwords.
 def validate_password(user_input: str):
     matched = re.match(r"^[\S]{8,64}$", user_input)
     return matched.string if matched else matched
@@ -50,7 +50,7 @@ def validate_password(user_input: str):
 
 # Minimum and maximum length, "_" and "-" only allowed special characters
 def validate_username(user_input: str):
-    matched = re.match(r"^[\w_-]{3,24}$", user_input)
+    matched = re.match(r"^[\w_-]{1,32}$", user_input)
     return matched.string if matched else matched
 
 
