@@ -58,11 +58,11 @@ Ruby Cobble
 Jeannine Simerly  
 Colby Tabares  
 Jason Castorena  
-Asia Mosteller  
+Henry Ackerman  
 Betsy Mendelsohn  
 Nicolle Leverette  
 Bobette Tuel  
-Lizabeth Borchert  
+Amy Nonymous  
 Danica Halverson  
 Consuelo Crown'''))
 
@@ -89,24 +89,26 @@ def create():
     db.commit()
 
     user_id = 0
+    password = 'password'       # This should be loaded from EnvVar
+    rand_password = 'password'  # TODO: might want to randomise the word used for the password?
     for user in USERS:
-        if user != "Aleida King":
-            create_content(db, user_id, user)
+        if user == "Aleida King":
+            create_content(db, user_id, user, password, 1)  # TODO: Expected password for when they are randomised
+        elif user == "Billye Quayle":
+            create_content(db, user_id, user, password, 0)  # TODO: Same here for the non-authenticated test account
         else:
-            create_content(db, user_id, user, 1)
+            create_content(db, user_id, user, rand_password)
         user_id += 1
     db.commit()
 
 
-def create_content(db, user_id, name, twofac=0):
+def create_content(db, user_id, name, password, twofac=0):
     salt = auth.generate_salt()
-    password = 'password' + salt + PEPPER  # TODO: might want to randomise the word used for the password?
+    password = password + salt + PEPPER
     pw_hash = auth.ug4_hash(password)
     c = db.cursor()
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
-    # email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
-    # sabotaging the emails for these fake users
-    email = '%s.%s-email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
+    email = '%s.%s@fakeemailservice.abcde' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
 
     c.execute('INSERT INTO users (userid, username, name, password, email,usetwofactor, salt) VALUES (?,?,?,?,?,?,?)',
               (user_id, username, name, pw_hash, email,twofac, salt))
