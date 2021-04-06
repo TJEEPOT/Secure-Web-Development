@@ -152,10 +152,11 @@ def get_posts(cid):
     return posts
 
 
-# TODO: Rewrite db stuff (Issue 27) -MS
 def add_post(content, date, title, userid):
     query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
-    insert_db(query, (userid, date, title, content))
+    validate_title = validation.validate_text(title)
+    validate_content = validation.validate_text(content)
+    insert_db(query, (userid, date, validate_title, validate_content))
 
 
 # TODO: Rewrite db stuff (Issue 27)... wait, why does this even exist? -MS
@@ -167,7 +168,7 @@ def get_email(email):
 
 def get_users(search):
     query = "SELECT username FROM users WHERE username LIKE ?"
-    validated_search = validation.validate_search(search)
+    validated_search = validation.validate_text(search)
     users = query_db(query, ('%'+validated_search+'%',))
     return users, validated_search
 

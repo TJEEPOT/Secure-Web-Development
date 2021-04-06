@@ -231,19 +231,17 @@ def create_account():
     return render_template('auth/create_account.html', msg='Check your email for confirmation.')
 
 
-# TODO: Rewrite db stuff (Issue 27) -MS
 @app.route('/post/', methods=['GET', 'POST'])
 @std_context
 def new_post():
     if 'userid' not in session:
         return redirect(url_for('login'))
 
-    userid = session['userid']
-    context = request.context
-
     if request.method == 'GET':
+        context = request.context
         return render_template('blog/new_post.html', **context)
 
+    userid = session['userid']
     date = datetime.datetime.now().timestamp()
     title = request.form.get('title')
     content = request.form.get('content')
