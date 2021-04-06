@@ -21,14 +21,16 @@ __status__ = "Development"  # or "Production"
 import os
 import sqlite3
 import time
+
+from dotenv import load_dotenv
 from flask import g
 
 import auth
 import validation
 
-# TODO: Move these into memory before going into production - MS
-DATABASE = 'database.sqlite'
-PEPPER = 'VEZna2zRIblhQPw-NqY3aQ'
+load_dotenv(override=True)
+DATABASE = os.environ.get("UG_4_DATABASE")
+PEPPER = os.environ.get("UG_4_PEP")
 
 
 # TODO: This is really badly written, will need rewriting and splitting into multiple functions for different

@@ -8,7 +8,7 @@ Desc.   : Handles functions for starting up the flask server and site functional
 History : 25/03/2021 - v1.0 - Load basic project file.
           01/04/2021 - v1.1 - Added 2fa system
           04/04/2021 - v1.2 - Added lockout system for login
-          06/04/2021 - v1.3 - Adjustments made for validation
+          06/04/2021 - v1.3 - Adjustments made for validation, moved secret key to EnvVar
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
@@ -19,9 +19,11 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
+import os
 import re
 from functools import wraps
 
+from dotenv import load_dotenv
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
 import db
@@ -29,11 +31,9 @@ import emailer
 
 app = Flask(__name__)
 
-# TODO: This will need to go into memory in the future. -MS
-# CS: Generated with os.urandom(16)
-app.secret_key = "b/n/x0c/x15@/xe2_xf2r#kt/xa1lMf/xf0G"
-# CS: Session lasts a week
-app.permanent_session_lifetime = datetime.timedelta(days=7)
+load_dotenv(override=True)
+app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
+app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS

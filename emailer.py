@@ -6,46 +6,49 @@ File    : emailer.py
 Date    : Thursday 01 April 2021
 Desc.   : Class to handle email functions for blog
 History : 01/04/2021 - v1.0 - Basic functions.
+          06/04/2021 - v1.1 - Swapped out confidential details for EnvVars
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.0"
+__version__ = "1.1"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import os
 import secrets
 import smtplib
 import string
-from email.message import EmailMessage
-
 import datetime
 import time
+
+from email.message import EmailMessage
+from dotenv import load_dotenv
+
 import db
+
+load_dotenv(override=True)
 
 
 class Emailer:
     def __init__(self):
-        self._credential_file_location = "emailcreds.txt"    # TODO store creds in memory?
-        try:
-            with open(self._credential_file_location) as file:
-                creds = file.read().split(",", 1)  # Credentials file must be in the form 'email,password'
-                self._account_name = creds[0]
-                self._account_password = creds[1]
-        except FileNotFoundError:
-            print("Email login file not found")
+        self._account_name = os.environ.get("UG_4_EMAIL")
+        self._account_password = os.environ.get("UG_4_EPW")
 
     # Base function for sending emails
     def send_email(self, to_address: str, subject: str, message: str):
         mail_server = smtplib.SMTP('smtp.gmail.com', 587)  # This is using a TLS connection (not sure if allowed)
         mail_server.starttls()
+        self._account_name += os.environ.get("UG_4_EMAIL_TYPE")
         mail_server.login(self._account_name, self._account_password)
+
         email_message = EmailMessage()
         email_message.set_content(message)
         email_message['Subject'] = subject
         email_message['From'] = self._account_name
         email_message['To'] = to_address
+
         mail_server.sendmail(self._account_name, to_address, message)
         mail_server.close()
 

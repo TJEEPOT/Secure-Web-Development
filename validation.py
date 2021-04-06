@@ -6,16 +6,21 @@ File    : validation.py
 Date    : Monday 29 March 2021
 Desc.   : Validation functions for use in other scripts - prevents circular referencing
 History : 29/03/2021 - v1.0 - Load basic project file.
+          06/04/2021 - v1.1 - Combine post and search functions, moved validate_two_factor() to auth.py
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.0"
+__version__ = "1.1"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import re
+
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 min_password_length = 8  # OWASP auth guide
 max_password_length = 64  # ^
