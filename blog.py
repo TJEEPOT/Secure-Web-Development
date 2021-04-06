@@ -83,7 +83,6 @@ def users_posts(uname=None):
         item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
         return item
 
-    cid = cid['userid']
     context = request.context
     context['posts'] = map(fix, db.get_posts(cid))
     return render_template('user_posts.html', **context)
@@ -97,11 +96,10 @@ def login():
         return render_template('auth/login.html', **context)
     
     # CS: Capture IP address
-    ip_address = request.remote_addr
+    ip_address = request.remote_addr  # TODO: Could this be an attack vector (can the user specify this)?
     # CS: Insert it if it doesn't exist
     db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
-    # CS: Get current login attempts
-    login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,), one=True)['attempts']
+
     email = request.form.get('email', '')
     password = request.form.get('password', '')
     user_id, username = db.get_login(email, password)
@@ -120,10 +118,11 @@ def login():
         return redirect(url_for(url))
     
     # CS: Update loginattempts for this IP
+    login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,), one=True)['attempts']
     login_attempts += 1
-    db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (login_attempts, ip_address))
 
     if login_attempts < 5:
+        db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (login_attempts, ip_address))
         remaining_logins = 5 - login_attempts
         return redirect(url_for('login_fail', error=f'Incorrect Login Details, {remaining_logins} attempts remaining.'))
 
@@ -153,7 +152,8 @@ def verify_code():
         return render_template('auth/two_factor.html')
 
     uid = session['userid']
-    user_code = re.match(r"^[\w]{6}$", request.form.get('code', ''))  # Alphanumeric + caps, 6 chars
+    code = request.form.get('code', '')
+    user_code = re.match(r"^[\w]{6}$", code)  # Alphanumeric + caps, 6 chars
 
     # check if two-factor code has been given
     if not user_code:
@@ -223,12 +223,16 @@ def create_account():
     username = request.form.get('username', '')
     password = request.form.get('password', '')
 
-    db.add_user(name, email, username, password)
-    # TODO: Should probably check here that the insert was a success before sending a confirmation. If the email
-    #  exists, it should tell the user, if the email exists, it should email a password recovery to the user -MS
-    # send_confirmation_email()
+    error_msg = db.add_user(name, email, username, password)
+    if not error_msg:
+        # TODO: send_confirmation_email()
+        return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
 
-    return render_template('auth/create_account.html', msg='Check your email for confirmation.')
+    if error_msg == 'Email exists':  # specific fail case for email existing
+        # TODO: send_password_reset_email()
+        return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
+    if error_msg:
+        return render_template('auth/create_account.html', msg=error_msg)
 
 
 @app.route('/post/', methods=['GET', 'POST'])
@@ -254,12 +258,11 @@ def new_post():
 @app.route('/reset/', methods=['GET', 'POST'])
 @std_context
 def reset():
-    context = request.context
-
-    email = request.form.get('email', '')
-    if email == '':
+    if request.method == 'GET':
         return render_template('auth/reset_request.html')
 
+    context = request.context
+    email = request.form.get('email', '')
     exists = db.get_email(email)
     if not exists:
         return render_template('auth/no_email.html', **context)
@@ -268,7 +271,6 @@ def reset():
     return render_template('auth/sent_reset.html', **context)
 
 
-# might want to have these link to the user pages too? -MS
 @app.route('/search/')
 @std_context
 def search_page():
