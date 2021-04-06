@@ -101,11 +101,11 @@ class TestValidation(unittest.TestCase):
                          v.validate_text("&<>\"'%*+,-/;=^|"))
 
     def test_search_length_max(self):
-        max_length = 100
+        max_length = 10
         over_max_characters = ""
         for x in range(max_length + 1):
             over_max_characters += "x"
-        self.assertIsNone(v.validate_text(over_max_characters))
+        self.assertEqual('xxxxxxxxxx', v.validate_text(over_max_characters, max_length))
 
 
 if __name__ == '__main__':

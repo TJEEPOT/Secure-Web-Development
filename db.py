@@ -154,7 +154,7 @@ def get_posts(cid):
 
 def add_post(content, date, title, userid):
     query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
-    validate_title = validation.validate_text(title)
+    validate_title = validation.validate_text(title, max_length=30)
     validate_content = validation.validate_text(content)
     insert_db(query, (userid, date, validate_title, validate_content))
 
@@ -168,7 +168,7 @@ def get_email(email):
 
 def get_users(search):
     query = "SELECT username FROM users WHERE username LIKE ?"
-    validated_search = validation.validate_text(search)
+    validated_search = validation.validate_text(search, max_length=20)
     users = query_db(query, ('%'+validated_search+'%',))
     return users, validated_search
 

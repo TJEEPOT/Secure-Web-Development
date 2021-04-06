@@ -62,10 +62,11 @@ def validate_email(user_input: str):
 
 
 # Encode html characters, set maximum length
-def validate_text(user_input: str):
+def validate_text(user_input: str, max_length=max_post_length):
     replaced_input = user_input
     for key, value in encoding_list.items():
         replaced_input = replaced_input.replace(key, value)
     replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
-    post_length = len(user_input)  # just checking max since no minimum
-    return replaced_input if post_length <= max_post_length else None
+
+    # break the string at the maximum length.
+    return replaced_input if len(user_input) <= max_length else replaced_input[0:max_length]
