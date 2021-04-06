@@ -62,20 +62,10 @@ def validate_email(user_input: str):
 
 
 # Encode html characters, set maximum length
-def validate_post(user_input: str):
+def validate_text(user_input: str):
     replaced_input = user_input
     for key, value in encoding_list.items():
         replaced_input = replaced_input.replace(key, value)
     replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
     post_length = len(user_input)  # just checking max since no minimum
     return replaced_input if post_length <= max_post_length else None
-
-
-# Same as post but shorter limit for now
-def validate_search(user_input: str):
-    replaced_input = user_input
-    for key, value in encoding_list.items():
-        replaced_input = replaced_input.replace(key, value)
-    replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
-    search_length = len(user_input)  # just checking max since no minimum
-    return replaced_input if search_length <= max_search_length else None
