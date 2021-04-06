@@ -6,12 +6,15 @@ File    : blog.py
 Date    : Thursday 25 March 2021
 Desc.   : Handles functions for starting up the flask server and site functionality
 History : 25/03/2021 - v1.0 - Load basic project file.
+          01/04/2021 - v1.1 - Added 2fa system
+          04/04/2021 - v1.2 - Added lockout system for login
+          06/04/2021 - v1.3 - Adjustments made for validation
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.0"
+__version__ = "1.3"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
@@ -245,12 +248,12 @@ def new_post():
         context = request.context
         return render_template('blog/new_post.html', **context)
 
-    userid = session['userid']
+    user_id = session['userid']
     date = datetime.datetime.now().timestamp()
     title = request.form.get('title')
     content = request.form.get('content')
 
-    db.add_post(content, date, title, userid)
+    db.add_post(content, date, title, user_id)
     return redirect('/')
 
 
