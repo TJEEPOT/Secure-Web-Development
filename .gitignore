@@ -133,3 +133,6 @@ dmypy.json
 
 # Coverage reports
 tests/coverage/*
+
+# Database
+database.sqlite
