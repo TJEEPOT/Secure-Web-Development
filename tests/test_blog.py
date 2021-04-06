@@ -184,10 +184,26 @@ class MyTestCase(unittest.TestCase):
             self.assertIn(b'<h2>test title</h2>', response.data)
             self.assertIn(b'test content...', response.data)
 
+            # test that an sqli will be disarmed before being stored in the database
+            data = {'title': '\' or 1=1 --',
+                    'content': '\' or 1=1 --'}
+            response = client.post('/post/', data=data, follow_redirects=True)
+            self.assertIn(b'<h2>&#39; or 1&#61;1 &#45;&#45;</h2>', response.data)  # title
+            self.assertIn(b'<p>\n            &#39; or 1&#61;1 &#45;&#45;...\n            </p>', response.data)
+
+            # test that a post containing malicious JS code will be disarmed (prevents Persistent XSS)
+            data = {'title': '<script>alert(1)</script>',
+                    'content': '<script>alert(1)</script>'}
+            response = client.post('/post/', data=data, follow_redirects=True)
+            self.assertIn(b'<h2>&#60;script&#62;alert(1)&#60;&#47;script&#62;</h2>', response.data)
+            self.assertIn(b'<p>\n            &#60;script&#62;alert(1)&#60;&#47;script&#62;...', response.data)
+
             # clean up the db
             with app.app_context():
                 query = """ DELETE FROM posts WHERE title=? """
                 db.del_from_db(query, ('test title',))
+                db.del_from_db(query, ('&#39; or 1&#61;1 &#45;&#45;',))
+                db.del_from_db(query, ('&#60;script&#62;alert(1)&#60;&#47;script&#62;',))
 
     def test_reset_password(self):
         with app.test_client() as client:
