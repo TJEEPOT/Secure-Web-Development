@@ -72,10 +72,11 @@ def send_two_factor(uid, user_email):
     # TODO: This was intended to be reusable by blog.py, creating and destroying is meh
 
     e = Emailer()
+    message = "Your Two-Factor code for UG-4 Secure Blogging site is: " + code
     if default_account:
         print(db.get_two_factor(uid))
     else:
-        e.send_email(user_email, "Two Factor Code", code)
+        e.send_email(user_email, "Blog Two Factor Code", message)
 
     return 'verify_code'
 
@@ -93,5 +94,3 @@ if __name__ == '__main__':
     print(secs >= 3)
     print(secs)
     print(mins)
-
-
