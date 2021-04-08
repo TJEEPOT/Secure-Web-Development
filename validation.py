@@ -27,7 +27,7 @@ max_password_length = 64  # ^
 min_username_length = 1  # As restricted by create_db.py
 max_username_length = 32  # ^
 max_post_length = 10000  # Arbitrary choices
-max_search_length = 30  # ^
+max_search_length = max_username_length
 encoding_list = {
     #    "&": "&#38;",
     ";": "&#59;",
