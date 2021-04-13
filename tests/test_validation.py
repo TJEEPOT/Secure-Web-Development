@@ -108,5 +108,12 @@ class TestValidation(unittest.TestCase):
         self.assertIsNone(v.validate_search(over_max_characters))
 
 
+    def test_parse_markup(self):
+        test_string = "hello please [b]bold[/b] this text [b]thanks[/b] oh and [i]italicise[/i] " \
+                      "this and [u]underline[/u] that but dont [b]bold this!"
+        expected_output = "hello please <b>bold</b> this text <b>thanks</b> oh and <i>italicise</i> " \
+                      "this and <u>underline</u> that but dont [b]bold this!"
+
+        self.assertEqual(expected_output, v.parse_markup(test_string))
 if __name__ == '__main__':
     unittest.main()

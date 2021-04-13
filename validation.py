@@ -79,3 +79,30 @@ def validate_search(user_input: str):
     replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
     search_length = len(user_input)  # just checking max since no minimum
     return replaced_input if search_length <= max_search_length else None
+
+
+# basic parsing for approved markup using [<command>] format
+# TODO hook this up after all the merging with Martin's stuff
+def parse_markup(user_input: str):
+    change_dict = {
+        "[b]": "<b>",
+        "[/b]": "</b>",
+        "[i]": "<i>",
+        "[/i]": "</i>",
+        "[u]": "<u>",
+        "[/u]": "</u>"
+    }
+    partner_dict = {
+        "[b]": "[/b]",
+        "[i]": "[/i]",
+        "[u]": "[/u]",
+    }
+    parsed_string = user_input
+    for key, value in partner_dict.items():
+        escaped_value = value.replace("[", "\[").replace("]", "\]")
+        end_tag_matches = re.finditer(rf'{escaped_value}', parsed_string)
+        end_spans = [end_match.span() for end_match in [*end_tag_matches]]
+        parsed_string = parsed_string.replace(value, change_dict[value])
+        parsed_string = parsed_string.replace(key, change_dict[key], len(end_spans))
+
+    return parsed_string
