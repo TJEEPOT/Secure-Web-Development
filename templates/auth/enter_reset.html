@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+    <h1>Login</h1>
+    <form method="POST" action="/enter_reset/">
+        <p><label type="email" for="email">Email:</label><input name="email" id="email"  /></p>
+        <p><label for="code">Code:</label><input name="code" id="code" /></p>
+        <p><input type="submit" name="submit" value="Submit" /></p>
+    </form>
+    <p>{{message}}</p>
+{% endblock %}

@@ -21,14 +21,15 @@ import secrets
 import string
 from functools import wraps
 
-from flask import Flask, g, render_template, redirect, request, session, url_for
+from flask import Flask, g, render_template, redirect, request, session, url_for, flash
 
 import db
 import emailer
 import validation
 
 app = Flask(__name__)
-
+host = "127.0.0.1"
+port = "5000"
 # TODO: This will need to go into memory in the future. -MS
 # CS: Generated with os.urandom(16)
 app.secret_key = "b/n/x0c/x15@/xe2_xf2r#kt/xa1lMf/xf0G"
@@ -282,21 +283,74 @@ def new_post():
 
 # TODO: Rewrite to hide if account exists or not (Issue 25) -MS
 @app.route('/reset/', methods=['GET', 'POST'])
-@std_context
 def reset():
-    context = request.context
 
     email = request.form.get('email', '')
-    if email == '':
-        return render_template('auth/reset_request.html')
+    print(email)
 
-    exists = db.get_email(email)
-    if not exists:
-        return render_template('auth/no_email.html', **context)
+    # TODO this is a duplicate snippet from two factor code generation , refactor somewhere else
+    code = ""
+    selection = string.ascii_letters
+    for x in range(0, 6):
+        code += secrets.choice(selection)  # TODO secrets library used (not sure if allowed)
 
-    context['email'] = email
-    return render_template('auth/sent_reset.html', **context)
+    inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
 
+    if inserted:
+        # TODO is there a way to generate a link to a page with hostname and port from flask??
+        url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
+        print(url)
+        #   send email here
+
+        pass
+    message = "If this address exists in our system we will send a reset request to you." \
+        if email else ""
+
+    return render_template('auth/reset_request.html', message=message)
+
+
+@app.route('/enter_reset/', methods=['GET', 'POST'])
+def enter_reset():
+    email = request.args.get('email')
+    code = request.args.get('code')
+    if not email or not code:
+        email = request.form.get('email', '')
+        code = request.form.get('code', '')
+
+    print(f'email: {email} code: {code}')
+
+    success = db.validate_reset_code(email, code)
+
+    if success:
+        token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        db.delete_reset_code(email)
+        return render_template('auth/reset_password.html', email=email, token=token)
+    message = ""
+    if email or code:
+        message = "Invalid email or reset code!"
+
+    return render_template('auth/enter_reset.html', message=message)
+
+
+@app.route('/reset_password/', methods=['GET', 'POST'])
+def reset_password():
+    # compare tokens
+
+    email = request.form.get('email', '')
+    token_from_form = request.form.get('token', '')
+    password = request.form.get('password', '')
+    if email and token_from_form and password:
+        token_from_db = db.get_reset_token(email)
+        if token_from_db == token_from_form:
+            password_changed = db.update_password_from_email(email, password)
+            if password_changed:
+                message = "Your password has been changed! Please login again."
+                flash(message)
+                return redirect(url_for('login'))
+        else:
+            message = "Something went wrong with your password reset. Please try again!"
+            return redirect('auth/reset_request.html', message=message)
+    return render_template('auth/reset_password.html')
 
 # might want to have these link to the user pages too? -MS
 @app.route('/search/')
@@ -313,4 +367,4 @@ def search_page():
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host, port)

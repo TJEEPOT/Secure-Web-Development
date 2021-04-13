@@ -86,8 +86,12 @@ def create():
 
     # CS: Login attempts table
     c.execute('''CREATE TABLE loginattempts (ip integer UNIQUE, attempts INTEGER default 0, lockouttime TEXT)''')
-    db.commit()
 
+    # Reset codes
+    c.execute('''CREATE TABLE reset_codes (user integer UNIQUE REFERENCES  users(userid), timestamp TEXT, code TEXT)''')
+    # Reset tokens
+    c.execute('''CREATE TABLE reset_tokens (user integer UNIQUE REFERENCES users(userid),timestamp TEXT, token TEXT)''')
+    db.commit()
     user_id = 0
     for user in USERS:
         if user != "Aleida King":
@@ -106,7 +110,7 @@ def create_content(db, user_id, name, twofac=0):
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
     # email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
     # sabotaging the emails for these fake users
-    email = '%s.%s-email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
+    email = '%s.%s@email.com' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
 
     c.execute('INSERT INTO users (userid, username, name, password, email,usetwofactor, salt) VALUES (?,?,?,?,?,?,?)',
               (user_id, username, name, pw_hash, email,twofac, salt))
