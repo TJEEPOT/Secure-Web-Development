@@ -133,3 +133,4 @@ dmypy.json
 
 # Coverage reports
 tests/coverage/*
+/.editorconfig

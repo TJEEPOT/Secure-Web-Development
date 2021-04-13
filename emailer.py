@@ -78,6 +78,21 @@ def send_two_factor(uid, user_email):
     return 'verify_code'
 
 
+def send_reset_link(user_email: str, link: str):
+
+    default_account = False
+    # flag if the email address is one of the default accounts
+    if user_email[-5:] == 'abcde':
+        default_account = True
+
+    e = Emailer()
+    message = "Please use the link below to reset your password.\n\n\n" + link
+    if default_account:
+        print(link)
+    else:
+        e.send_email(user_email, "Blog Password Reset", message)
+
+
 if __name__ == '__main__':
     time_now = datetime.datetime.now()
     time.sleep(3)

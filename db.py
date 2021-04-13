@@ -225,9 +225,7 @@ def validate_reset_code(email: str, code: str):
         userid = get_user_id_from_email(email)
         query = "SELECT * FROM reset_codes WHERE user=? AND code=?"
         result = query_db(query, (userid, code), one=True)
-        print(result)
         ret = result
-
     return ret
 
 

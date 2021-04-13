@@ -300,9 +300,9 @@ def reset():
         # TODO is there a way to generate a link to a page with hostname and port from flask??
         url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
         print(url)
-        #   send email here
+        # TODO send email here (might need to be refactored for Martin)
+        emailer.send_reset_link(email, url)
 
-        pass
     message = "If this address exists in our system we will send a reset request to you." \
         if email else ""
 
@@ -319,7 +319,7 @@ def enter_reset():
 
     print(f'email: {email} code: {code}')
 
-    success = db.validate_reset_code(email, code)
+    success = db.validate_reset_code(email, code)   # TODO add in time limits like two-factor after changes
 
     if success:
         token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
