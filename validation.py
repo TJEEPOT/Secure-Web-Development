@@ -63,7 +63,7 @@ def validate_username(user_input: str):
 # Rely on something else for primary email validation
 # TODO redo
 def validate_email(user_input: str):
-    matched = re.match(r"^\w+(\w|.|-)*@\w+(.|\w)+\w", user_input)
+    matched = re.match(r"^\w+(\w|\.|-)*@\w+(\.|\w)+\w", user_input)
     return matched.string if matched else matched
 
 
