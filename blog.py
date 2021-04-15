@@ -28,6 +28,8 @@ from flask import Flask, g, render_template, redirect, request, session, url_for
 
 import db
 import emailer
+import string
+import random
 
 app = Flask(__name__)
 host = "127.0.0.1"
@@ -263,13 +265,11 @@ def new_post():
 def reset():
 
     email = request.form.get('email', '')
-    print(email)
-
     # TODO this is a duplicate snippet from two factor code generation , refactor somewhere else
     code = ""
     selection = string.ascii_letters
     for x in range(0, 6):
-        code += secrets.choice(selection)  # TODO secrets library used (not sure if allowed)
+        code += random.choice(selection)
 
     inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
 

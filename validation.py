@@ -61,6 +61,7 @@ def validate_username(user_input: str):
 
 # This is a simple email address validation that is not compliant with all email addresses but matches most common.
 # Rely on something else for primary email validation
+# TODO redo
 def validate_email(user_input: str):
     matched = re.match(r"^\w+(\w|.|-)*@\w+(.|\w)+\w", user_input)
     return matched.string if matched else matched
@@ -72,7 +73,15 @@ def validate_text(user_input: str, max_length=max_post_length):
     for key, value in encoding_list.items():
         replaced_input = replaced_input.replace(key, value)
     replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
+    re_re_dict = {      # undo in the case of valid markup (simplest way)
+        "b": "[/b]",
+        "i": "[/i]",
+        "u": "[/u]",
+    }
+    for key, value in re_re_dict.items():
+        replaced_input = re.sub(rf"\[&#47;{key}\]", f"{value}", replaced_input)
 
+    replaced_input = parse_markup(replaced_input)
     # break the string at the maximum length.
     return replaced_input if len(user_input) <= max_length else replaced_input[0:max_length]
 
@@ -95,10 +104,9 @@ def parse_markup(user_input: str):
     }
     parsed_string = user_input
     for key, value in partner_dict.items():
-        escaped_value = value.replace("[", "\[").replace("]", "\]")
+        escaped_value = value.replace("[", "\[").replace("]", "\]") # for the regex format
         end_tag_matches = re.finditer(rf'{escaped_value}', parsed_string)
         end_spans = [end_match.span() for end_match in [*end_tag_matches]]
         parsed_string = parsed_string.replace(value, change_dict[value])
         parsed_string = parsed_string.replace(key, change_dict[key], len(end_spans))
-
     return parsed_string
