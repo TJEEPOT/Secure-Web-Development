@@ -41,10 +41,10 @@ class TestValidation(unittest.TestCase):
         self.assertIsNotNone(v.validate_username("with_underscore"))
 
     def test_username_below_min(self):
-        self.assertIsNone(v.validate_username("1"))  # smaller than minimum length
+        self.assertIsNone(v.validate_username(""))  # smaller than minimum length
 
     def test_username_above_max(self):
-        self.assertIsNone(v.validate_username("overmaximumlengthusername"))  # over max (24)
+        self.assertIsNone(v.validate_username("reallyovermaximumlengthusernamehere"))  # over max (32)
 
     def test_username_invalid_char(self):
         self.assertIsNone(v.validate_username("Username!"))  # unapproved special char
@@ -63,7 +63,7 @@ class TestValidation(unittest.TestCase):
 
     def test_email_special_characters(self):
         email = "test-test.test@test.com"
-        self.assertEqual(email, v.validate_email(email))
+        self.assertEqual("test-test.test@test.com", v.validate_email(email))
 
     def test_email_subdomain(self):
         email = "test@test.co.uk"
@@ -73,39 +73,39 @@ class TestValidation(unittest.TestCase):
         email = "test-test.com"
         self.assertIsNone(v.validate_email(email))
 
-    def test_email_short(self):
+    def test_email_sqli(self):
         email = "' or 1=1;--"
         self.assertIsNone(v.validate_email(email))
 
     # post tests
     def test_post_xss_length(self):
-        self.assertIsNotNone(v.validate_post('<script>alert("xss");</script>'))
+        self.assertIsNotNone(v.validate_text('<script>alert("xss");</script>'))
 
     def test_post_xss_above_length(self):
-        max_length = 10000
+        max_length = 10
         overly_long_script = ""
         for x in range(max_length + 1):
             overly_long_script += "x"
-        self.assertIsNone(v.validate_post(overly_long_script))
+        self.assertEqual('xxxxxxxxxx', v.validate_text(overly_long_script, max_length))
 
     def test_post_xss(self):
-        self.assertNotEqual('<script>alert("xss");</script>', v.validate_post('<script>alert("xss");</script>'))
+        self.assertNotEqual('<script>alert("xss");</script>', v.validate_text('<script>alert("xss");</script>'))
 
     def test_post_xss_character_encoding(self):
         self.assertEqual("&#38;&#60;&#62;&#34;&#39;&#37;&#42;&#43;&#44;&#45;&#47;&#59;&#61;&#94;&#124;",
-                         v.validate_post("&<>\"'%*+,-/;=^|"))
+                         v.validate_text("&<>\"'%*+,-/;=^|"))
 
     # search tests
     def test_search_xss_character_encoding(self):
         self.assertEqual("&#38;&#60;&#62;&#34;&#39;&#37;&#42;&#43;&#44;&#45;&#47;&#59;&#61;&#94;&#124;",
-                         v.validate_search("&<>\"'%*+,-/;=^|"))
+                         v.validate_text("&<>\"'%*+,-/;=^|"))
 
     def test_search_length_max(self):
-        max_length = 100
+        max_length = 10
         over_max_characters = ""
         for x in range(max_length + 1):
             over_max_characters += "x"
-        self.assertIsNone(v.validate_search(over_max_characters))
+        self.assertEqual('xxxxxxxxxx', v.validate_text(over_max_characters, max_length))
 
 
     def test_parse_markup(self):
