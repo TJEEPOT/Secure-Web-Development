@@ -4,8 +4,9 @@
 {% block content %}
     <h1>Login</h1>
     <form method="POST" action="/login/">
-        <p><label for="username">Username:</label><input name="username" id="username" maxlength="32" /></p>
-        <p><label for="password">Password:</label><input name="password" id="password" maxlength="32" type="password" /></p>
+        <p><label for="email">Email:</label><input name="email" id="email" maxlength="64" /></p>
+        <p><label for="password">Password:</label><input name="password" id="password" minlength="8" maxlength="32"
+                                                         type="password" /></p>
         <p><input type="submit" name="login" value="Login" /></p>
     </form>
     <a href="/reset/">Forgotten your password?</a>

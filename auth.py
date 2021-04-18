@@ -21,6 +21,10 @@ import secrets
 import time
 import binascii
 
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
 
 def generate_salt():
     """ Generates a new salt randomly selected from a set of characters.
@@ -235,6 +239,12 @@ def _gen_s_box():
         s[i - 1] = tmp
 
     return s
+
+
+def load(env_var, enc=False):
+    """ Ensure the given variable is correctly encoded """
+    # this will take in the given env var and decrypt it for use.
+    pass
 
 
 if __name__ == "__main__":

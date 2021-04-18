@@ -6,23 +6,28 @@ File    : validation.py
 Date    : Monday 29 March 2021
 Desc.   : Validation functions for use in other scripts - prevents circular referencing
 History : 29/03/2021 - v1.0 - Load basic project file.
+          06/04/2021 - v1.1 - Combine post and search functions, moved validate_two_factor() to auth.py
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.0"
+__version__ = "1.1"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import re
+
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
 
 min_password_length = 8  # OWASP auth guide
 max_password_length = 64  # ^
 min_username_length = 1  # As restricted by create_db.py
 max_username_length = 32  # ^
 max_post_length = 10000  # Arbitrary choices
-max_search_length = 100  # ^
+max_search_length = max_username_length
 encoding_list = {
     #    "&": "&#38;",
     ";": "&#59;",
@@ -42,7 +47,7 @@ encoding_list = {
 }
 
 
-# Passwords between 8-64 characters
+# Passwords between 8-64 characters. Do not add additional validation here or it will break peoples existing passwords.
 def validate_password(user_input: str):
     matched = re.match(r"^[\S]{8,64}$", user_input)
     return matched.string if matched else matched
@@ -50,7 +55,7 @@ def validate_password(user_input: str):
 
 # Minimum and maximum length, "_" and "-" only allowed special characters
 def validate_username(user_input: str):
-    matched = re.match(r"^[\w_-]{3,24}$", user_input)
+    matched = re.match(r"^[\w_-]{1,32}$", user_input)
     return matched.string if matched else matched
 
 
@@ -62,20 +67,11 @@ def validate_email(user_input: str):
 
 
 # Encode html characters, set maximum length
-def validate_post(user_input: str):
+def validate_text(user_input: str, max_length=max_post_length):
     replaced_input = user_input
     for key, value in encoding_list.items():
         replaced_input = replaced_input.replace(key, value)
     replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
-    post_length = len(user_input)  # just checking max since no minimum
-    return replaced_input if post_length <= max_post_length else None
 
-
-# Same as post but shorter limit for now
-def validate_search(user_input: str):
-    replaced_input = user_input
-    for key, value in encoding_list.items():
-        replaced_input = replaced_input.replace(key, value)
-    replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
-    search_length = len(user_input)  # just checking max since no minimum
-    return replaced_input if search_length <= max_search_length else None
+    # break the string at the maximum length.
+    return replaced_input if len(user_input) <= max_length else replaced_input[0:max_length]

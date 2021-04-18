@@ -12,12 +12,11 @@ from blog import app
 def delete_user(user_id):
     with app.app_context():
         query = """ DELETE FROM users WHERE userid=? """
-        user_id = user_id['userid']
         db.del_from_db(query, (user_id,))
 
 
 class MyTestCase(unittest.TestCase):
-    def test_create_account(self):
+    def test_create_account_success(self):
         client = app.test_client(self)
 
         # get the account creation page
@@ -41,14 +40,14 @@ class MyTestCase(unittest.TestCase):
 
         self.assertIn(b'Check your email for confirmation', response.data)
         self.assertLess(0.95, time_diff)
-        self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
         # check the account exists
         with app.app_context():
             user_id = db.get_user('testing')
             self.assertIsNotNone(user_id)
 
-        # ensure that the response for an existing account comes back the same and also take a second
+        # ensure that the response for an existing email comes back the same and also take a second
+        data.update({'username': 'testingtwo'})
         start_time = time.time()
         response = client.post('/create_account/', data=data, follow_redirects=True)
         time_diff = time.time() - start_time
@@ -59,6 +58,70 @@ class MyTestCase(unittest.TestCase):
 
         # clean up the db
         delete_user(user_id)
+
+    def test_create_account_failure(self):
+        client = app.test_client(self)
+        data = {'name': 'test account',
+                'email': 'test.account@atestingemail.tk',
+                'username': 'testing',
+                'password': 'test_password1'}
+
+        # ensure the account doesn't exist
+        with app.app_context():
+            user_id = db.get_user('testing')
+            if user_id:
+                delete_user(user_id)
+
+        # test name sqli
+        data.update({'name': '\' or 1=1;--'})
+        client.post('/create_account/', data=data, follow_redirects=True)
+        with app.app_context():
+            user_id = db.get_user('testing')
+            self.assertIsNotNone(user_id)
+            delete_user(user_id)
+
+        # test name XSS
+        data.update({'name': '<script>alert(1);</script>'})
+        client.post('/create_account/', data=data, follow_redirects=True)
+        with app.app_context():
+            user_id = db.get_user('testing')
+            self.assertIsNotNone(user_id)
+            delete_user(user_id)
+        data.update({'name': 'test account'})
+
+        # test email sqli
+        data.update({'email': '\' or 1=1;--'})
+        response = client.post('/create_account/', data=data, follow_redirects=True)
+        self.assertIn(b'Email validation failed.', response.data)
+
+        # test email XSS
+        data.update({'email': '<script>alert(1);</script>'})
+        response = client.post('/create_account/', data=data, follow_redirects=True)
+        self.assertIn(b'Email validation failed.', response.data)
+        data.update({'email': 'test.account@atestingemail.tk'})
+
+        # test username sqli
+        data.update({'username': '\' or 1=1;--'})
+        response = client.post('/create_account/', data=data, follow_redirects=True)
+        self.assertIn(b'Username validation failed.', response.data)
+
+        # test username XSS
+        data.update({'username': '<script>alert(1);</script>'})
+        response = client.post('/create_account/', data=data, follow_redirects=True)
+        self.assertIn(b'Username validation failed.', response.data)
+        data.update({'username': 'testing'})
+
+        # Actually, passwords don't need testing since they are hashed before storage, as long as login allows them.
+
+        # # test password sqli
+        # data.update({'password': '\' or 1=1;--'})
+        # response = client.post('/create_account/', data=data, follow_redirects=True)
+        # self.assertIn(b'Password validation failed.', response.data)
+        #
+        # # test password XSS
+        # data.update({'password': '<script>alert(1);</script>'})
+        # response = client.post('/create_account/', data=data, follow_redirects=True)
+        # self.assertIn(b'Password validation failed.', response.data)
 
     def test_index(self):
         response = app.test_client(self).get('/')
@@ -82,55 +145,97 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # test that no data given returns the login page
             response = client.get('/login/')
-            self.assertIn(b'<input name="username" id="username" maxlength="32" />', response.data)
+            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
             self.assertNotIn(b'Check your email for confirmation', response.data)
 
             # test that a correct username and password work - should return a result in around one second
             start_time = time.time()
-            data = {'username': 'bquayle',
+            data = {'email': 'b.quayle@fakeemailservice.abcde',
                     'password': 'password'}
             response = client.post('/login/', data=data, follow_redirects=True)
             time_diff = time.time() - start_time
 
             self.assertIn(b'<strong>User:</strong> bquayle<br />', response.data)
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
             # test that the account logs out
             response = client.get('/logout/', follow_redirects=True)
             self.assertNotIn(b'<strong>User:</strong> bquayle<br />', response.data)
             self.assertIn(b'<a href="/login/">Login</a>', response.data)
 
+    def test_incorrect_login(self):
+        with app.test_client() as client:
+            ip = '127.0.0.1'
+            local = {'REMOTE_ADDR': ip}
+
+            # ensure loginattempts is empty
+            with app.app_context():
+                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip, ))
+
             # test that an incorrect username does not work - should take around one second
             start_time = time.time()
-            data = {'username': 'notbquayle',
+            data = {'email': 'not.b.quayle@fakeemailservice.abcde',
                     'password': 'password'}
-            response = client.post('/login/', data=data, follow_redirects=True)
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
             time_diff = time.time() - start_time
 
             self.assertNotIn(b'<strong>User:</strong> bquayle<br />', response.data)
+            self.assertIn(b'Incorrect Login Details, 4 attempts remaining', response.data)
             self.assertLess(0.95, time_diff)
             self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
             # test that an incorrect password does not work - should take around one second
             start_time = time.time()
-            data = {'username': 'bquayle',
+            data = {'email': 'b.quayle@fakeemailservice.abcde',
                     'password': 'AnIncorrectPassword'}
-            response = client.post('/login/', data=data, follow_redirects=True)
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
             time_diff = time.time() - start_time
 
             self.assertNotIn(b'<strong>User:</strong> bquayle<br />', response.data)
+            self.assertIn(b'Incorrect Login Details, 3 attempts remaining', response.data)
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
+
+            # use up the remaining attempts
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Incorrect Login Details, 2 attempts remaining', response.data)
+
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Incorrect Login Details, 1 attempts remaining', response.data)
+
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Too many login attempts. Login disabled for 15 minutes.', response.data)
+
+            # change stored time to simulate >15 minutes passing
+            with app.app_context():
+                twenty_minutes_ago = datetime.now() - timedelta(minutes=20)
+                db.update_db("UPDATE loginattempts SET lockouttime=? WHERE ip=?", (twenty_minutes_ago, ip))
+
+            #  attempts should now reset
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'Incorrect Login Details, 4 attempts remaining', response.data)
+
+            # test email sqli
+            data.update({'email': '\' or 1=1;--'})
+            response = client.post('/login/', data=data, follow_redirects=True)
+            self.assertIn(b'Incorrect Login Details', response.data)
+
+            # test email XSS
+            data.update({'email': '<script>alert(1);</script>'})
+            response = client.post('/login/', data=data, follow_redirects=True)
+            self.assertIn(b'Incorrect Login Details', response.data)
+
+            # clear loginattempts
+            with app.app_context():
+                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip, ))
 
     def test_new_post(self):
         with app.test_client() as client:
             # without an active session, we should be redirected to the login page
             response = client.get('/post/', follow_redirects=True)
-            self.assertIn(b'<input name="username" id="username" maxlength="32" />', response.data)
+            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
 
             # log in a user and ensure the test post doesn't exist yet
-            data = {'username': 'bquayle',
+            data = {'email': 'b.quayle@fakeemailservice.abcde',
                     'password': 'password'}
             response = client.post('/login/', data=data, follow_redirects=True)
 
@@ -138,7 +243,7 @@ class MyTestCase(unittest.TestCase):
             self.assertNotIn(b'test content...', response.data)
 
             # get the blog post page
-            response = client.get('/post/')
+            response = client.get('/post/', follow_redirects=True)
             self.assertIn(b'<h1>New Post</h1>', response.data)  # ensure the post page is returned
 
             # make a test post and check it's on the returned index page
@@ -150,10 +255,26 @@ class MyTestCase(unittest.TestCase):
             self.assertIn(b'<h2>test title</h2>', response.data)
             self.assertIn(b'test content...', response.data)
 
+            # test that an sqli will be disarmed before being stored in the database
+            data = {'title': '\' or 1=1 --',
+                    'content': '\' or 1=1 --'}
+            response = client.post('/post/', data=data, follow_redirects=True)
+            self.assertIn(b'<h2>&#39; or 1&#61;1 &#45;&#45;</h2>', response.data)  # title
+            self.assertIn(b'<p>\n            &#39; or 1&#61;1 &#45;&#45;...\n            </p>', response.data)
+
+            # test that a post containing malicious JS code will be disarmed (prevents Persistent XSS)
+            data = {'title': '<script>alert(1)</script>',
+                    'content': '<script>alert(1)</script>'}
+            response = client.post('/post/', data=data, follow_redirects=True)
+            self.assertIn(b'<h2>&#60;script&#62;alert(1)&#60;&#47;script&#62;</h2>', response.data)
+            self.assertIn(b'<p>\n            &#60;script&#62;alert(1)&#60;&#47;script&#62;...', response.data)
+
             # clean up the db
             with app.app_context():
                 query = """ DELETE FROM posts WHERE title=? """
                 db.del_from_db(query, ('test title',))
+                db.del_from_db(query, ('&#39; or 1&#61;1 &#45;&#45;',))
+                db.del_from_db(query, ('&#60;script&#62;alert(1)&#60;&#47;script&#62;',))
 
     def test_reset_password(self):
         with app.test_client() as client:
@@ -163,9 +284,9 @@ class MyTestCase(unittest.TestCase):
             self.assertNotIn(b'<label for="password">Password:</label>', response.data)
 
             # check that submitting a correct address will send a reset email
-            data = {'email': 'a.king-email.com'}
+            data = {'email': 'a.king@fakeemailservice.abcde'}
             response = client.post('/reset/', data=data, follow_redirects=True)
-            self.assertIn(b'<p>Sent a reset link to a.king-email.com.</p>', response.data)
+            self.assertIn(b'<p>Sent a reset link to a.king@fakeemailservice.abcde.</p>', response.data)
 
             # TODO: submitting an email address not registered to an account should show the same result page as a
             #  registered email, the email sent should then invite them to sign up with an account.
@@ -183,27 +304,37 @@ class MyTestCase(unittest.TestCase):
             # empty search returns all accounts TODO: (should this be changed?)
             response = client.get('/search/', follow_redirects=True)
             self.assertIn(b'<h1>Search results</h1>', response.data)
-            self.assertIn(b'<p>aking</p>', response.data)
-            self.assertIn(b'<p>wtomasello</p>', response.data)
+            self.assertIn(b'<p><a href="/aking">aking</a></p>', response.data)
+            self.assertIn(b'<p><a href="/dframe">dframe</a></p>', response.data)
 
             # a search for aking returns just that account
             query = {'s': 'aking'}
             response = client.get('/search/', query_string=query, follow_redirects=True)
             self.assertIn(b'<p>Results for: aking</p>', response.data)
-            self.assertIn(b'<p>aking</p>', response.data)
-            self.assertNotIn(b'<p>abasco</p>', response.data)
+            self.assertIn(b'<p><a href="/aking">aking</a></p>', response.data)
+            self.assertNotIn(b'<p><a href="/abasco">abasco</a></p>', response.data)
 
             # a search for 'ki' will return all accounts that have 'ki' in their name
             query = {'s': 'ki'}
             response = client.get('/search/', query_string=query, follow_redirects=True)
             self.assertIn(b'<p>Results for: ki</p>', response.data)
-            self.assertIn(b'<p>aking</p>', response.data)
-            self.assertIn(b'<p>tkimler</p>', response.data)
+            self.assertIn(b'<p><a href="/aking">aking</a></p>', response.data)
+            self.assertIn(b'<p><a href="/tkimler">tkimler</a></p>', response.data)
+
+            # a search containing an SQLi will be disarmed
+            query = {'s': "' union all select password from users --"}
+            response = client.get('/search/', query_string=query, follow_redirects=True)
+            self.assertIn(b'<p>Results for: &#39; union all select passwor</p>', response.data)
+
+            # a search containing malicious JS code will be disarmed (prevents Reflected XSS)
+            query = {'s': '<script>alert(1)</script>'}
+            response = client.get('/search/', query_string=query, follow_redirects=True)
+            self.assertIn(b'<p>Results for: &#60;script&#62;alert(1)&#60;&#47;script&#62;</p>', response.data)
 
     def test_two_factor_authentication_success(self):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
-            data = {'username': 'aking',
+            data = {'email': 'a.king@fakeemailservice.abcde',
                     'password': 'password'}
             client.post('/login/', data=data, follow_redirects=True)
 
@@ -234,7 +365,7 @@ class MyTestCase(unittest.TestCase):
     def test_two_factor_authentication_failure(self):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
-            data = {'username': 'aking',
+            data = {'email': 'a.king@fakeemailservice.abcde',
                     'password': 'password'}
             client.post('/login/', data=data, follow_redirects=True)
 
