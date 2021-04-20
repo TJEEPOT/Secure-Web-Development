@@ -51,6 +51,7 @@ class Emailer:
 
         mail_server.sendmail(self._account_name, to_address, message)
         mail_server.close()
+        print("Email sent to", to_address, ": ", message)
 
 
 def send_two_factor(uid, user_email):
@@ -79,6 +80,34 @@ def send_two_factor(uid, user_email):
         e.send_email(user_email, "Blog Two Factor Code", message)
 
     return 'verify_code'
+
+
+def send_reset_link(user_email: str, link: str):
+    default_account = False
+    # flag if the email address is one of the default accounts
+    if user_email[-5:] == 'abcde':
+        default_account = True
+
+    e = Emailer()
+    message = "Please use the link below to reset your password.\n\n\n" + link
+    if default_account:
+        print(link)
+    else:
+        e.send_email(user_email, "Blog Password Reset", message)
+
+
+def send_account_confirmation(user_email: str, name: str):
+    default_account = False
+    if user_email[-5:] == 'abcde':
+        default_account = True
+
+    e = Emailer()
+    message = "Dear " + name + "\n\n This is confirmation you have created an account on our blog. Thank you."
+    # TODO: Account activation system perhaps? So the account is disabled until a link here is clicked.
+    if default_account:
+        print(user_email, ": Account created, please login.")
+    else:
+        e.send_email(user_email, "New account created", message)
 
 
 if __name__ == '__main__':

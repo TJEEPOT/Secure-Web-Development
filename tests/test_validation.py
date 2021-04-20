@@ -77,6 +77,10 @@ class TestValidation(unittest.TestCase):
         email = "' or 1=1;--"
         self.assertIsNone(v.validate_email(email))
 
+    def test_email_duplicate_at(self):
+        email = "a.king@@fakeemailservice.abcde"
+        self.assertIsNone(v.validate_email(email))
+
     # post tests
     def test_post_xss_length(self):
         self.assertIsNotNone(v.validate_text('<script>alert("xss");</script>'))
@@ -95,6 +99,13 @@ class TestValidation(unittest.TestCase):
         self.assertEqual("&#38;&#60;&#62;&#34;&#39;&#37;&#42;&#43;&#44;&#45;&#47;&#59;&#61;&#94;&#124;",
                          v.validate_text("&<>\"'%*+,-/;=^|"))
 
+    def test_post_valid_markup(self):
+        test_string = "hello please [b]bold[/b] this text [b]thanks[/b] oh and [i]italicise[/i] " \
+                      "this and [u]underline[/u] that but dont [b]bold this!"
+        expected_output = "hello please <b>bold</b> this text <b>thanks</b> oh and <i>italicise</i> " \
+                      "this and <u>underline</u> that but dont [b]bold this!"
+        self.assertEqual(expected_output, v.validate_text(test_string))
+
     # search tests
     def test_search_xss_character_encoding(self):
         self.assertEqual("&#38;&#60;&#62;&#34;&#39;&#37;&#42;&#43;&#44;&#45;&#47;&#59;&#61;&#94;&#124;",
@@ -108,5 +119,12 @@ class TestValidation(unittest.TestCase):
         self.assertEqual('xxxxxxxxxx', v.validate_text(over_max_characters, max_length))
 
 
+    def test_parse_markup(self):
+        test_string = "hello please [b]bold[/b] this text [b]thanks[/b] oh and [i]italicise[/i] " \
+                      "this and [u]underline[/u] that but dont [b]bold this!"
+        expected_output = "hello please <b>bold</b> this text <b>thanks</b> oh and <i>italicise</i> " \
+                      "this and <u>underline</u> that but dont [b]bold this!"
+
+        self.assertEqual(expected_output, v.parse_markup(test_string))
 if __name__ == '__main__':
     unittest.main()

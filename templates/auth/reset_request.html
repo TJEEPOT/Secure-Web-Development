@@ -1,9 +1,12 @@
 {% extends 'base.html' %}
-{% block title %}Reset Password{% endblock %}
+{% block title %}Reset Request{% endblock %}
 {% block content %}
     <h1>Login</h1>
     <form method="POST" action="/reset/">
-        <p><label for="email">Email:</label><input name="email" id="email" /></p>
+        <p><label type="email" for="email">Email:</label><input name="email" id="email" /></p>
         <p><input type="submit" name="login" value="Send me a reset" /></p>
     </form>
+    {% autoescape false %}
+        <p>{{message}}</p>
+    {% endautoescape %}
 {% endblock %}
