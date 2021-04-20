@@ -267,6 +267,7 @@ def reset():
     context = request.context
     email = request.form.get('email', '')
     exists = db.get_email(email)
+    
     if not exists:
         return render_template('auth/no_email.html', **context)
 
