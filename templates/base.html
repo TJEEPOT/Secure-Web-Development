@@ -15,18 +15,21 @@
     </nav>
 
     {% block login %}
-    {% if loggedin %}
-    <div id="userbox">
-        <strong>User:</strong> {{username}}<br />
-        <a href="/post/">Post</a>
-        <a href="/logout/">Logout</a>
-    </div>
-    {% else %}
-    <div id="loginbox">
-        <a href="/login/">Login</a> <br>
-        <a href="/create_account/">Create Account</a>
-    </div>
-    {% endif %}
+        {% if loggedin %}
+            <div id="userbox">
+                {% autoescape false %}
+                    <strong>User:</strong> {{username}}<br />
+                {% endautoescape %}
+                <a href="/post/">Post</a>
+                <a href="/logout/">Logout</a>
+
+            </div>
+        {% else %}
+            <div id="loginbox">
+                <a href="/login/">Login</a> <br>
+                <a href="/create_account/">Create Account</a>
+            </div>
+        {% endif %}
     {% endblock %}
 
     {% block content %}
