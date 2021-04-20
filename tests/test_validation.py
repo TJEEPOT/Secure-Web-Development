@@ -126,5 +126,7 @@ class TestValidation(unittest.TestCase):
                       "this and <u>underline</u> that but dont [b]bold this!"
 
         self.assertEqual(expected_output, v.parse_markup(test_string))
+
+
 if __name__ == '__main__':
     unittest.main()
