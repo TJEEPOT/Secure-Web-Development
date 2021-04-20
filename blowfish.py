@@ -9,7 +9,9 @@ Date    : Friday 9 April 2021
 Desc.   : Simple encryption method done in Python.
 History : 09/04/2021 - v1.0 - Create project file.
           10/04/2021 - v1.1 - Added BlowyFishy class.
-
+          12/04/2021 - v1.2 - Added mode of operation for Blowfish cipher
+          18/04/2021 - v1.3 - Used Counter mode
+          18/04/2021 - v1.4 - Created unit tests
 
 """
 
@@ -43,9 +45,11 @@ class BlowyFishy:
                 constants.s_box[i][j + 1] = right_s
 
     def encrypt(self, lhs, rhs):
-        """Encrypts plain text using Blowfish
-        :param
-        :param
+        """Encrypts a block size of 64 bit plain text using Blowfish
+        :param int lhs: 32 Bits of left hand side
+        :param int rhs: 32 Bits of right hand side
+
+        :returns: int tuple of left and right hand side
         """
         for i in range(16):
             lhs ^= constants.p_box[i]
@@ -57,8 +61,11 @@ class BlowyFishy:
         return lhs, rhs
 
     def decrypt(self, lhs, rhs):
-        """Decrypts cipher text using Blowfish
-        :param
+        """Decrypts 64 bit cipher text using Blowfish
+        :param int lhs: 32 Bits of left hand side
+        :param int rhs: 32 Bits of right hand side
+
+        :returns: int tuple of left and right hand side
         """
         for i in range(17, 1, -1):
             lhs ^= constants.p_box[i]
@@ -72,7 +79,9 @@ class BlowyFishy:
     def f_func(self, xor_data):
         """F-function splits 32 bit input into 4 parts
 
-        :param int xor_data:
+        :param int xor_data: 32 Bit left hand side
+
+        :returns: F-function that will be XOR with right hand side
         """
         cp0 = (xor_data & 0xff000000) >> 24
         cp1 = (xor_data & 0x00ff0000) >> 16
@@ -86,35 +95,26 @@ class BlowyFishy:
 
 
 class CTR(BlowyFishy):
-    # Generated 64 bit integer nonce
-    def __init__(self, cipher, nonce=uuid.uuid4().int & (1 << 32) - 1):
+    def __init__(self, cipher, nonce):
         self.cipher = cipher
         self.nonce = nonce
 
     def nonce_add_counter(self, counter):
         """Adds nonce and counter together to be encrypted
-        :param
+        :param int counter: Increments for every 64 bits
+
+        :returns: int tuple of left and right hand side
         """
-        #nonce_plus_counter = (self.nonce << 32) + counter
-        # Turns integer into 64 bit binary representation
-        #bit_rep = "{0:b}".format(nonce_plus_counter)
-        # 64 bit is split in half, left and right hand side
-        #lhs, rhs = int(bit_rep[0:len(bit_rep) // 2]), int(bit_rep[(len(bit_rep) // 2):])
         lhs = self.nonce
         rhs = counter
         return self.cipher.encrypt(lhs, rhs)
 
     def ctr_encryption(self, message):
         """Divides plaintext into 64 bits
-        :param
+        :param str message: Plain text message
 
-        :return:
+        :return: New string that is enciphered
         """
-        #message_length = len(message)
-        # Block size is 64 bits and each character in a message contains 8 bits
-        #leftover_bytes = message_length % 8
-        # Mark where the message furthest extends before possible padding
-        #max_block = message_length - leftover_bytes
 
         # List of the message split into blocks
         split_message_list = []
@@ -140,24 +140,23 @@ class CTR(BlowyFishy):
             counter += 1
         return full_ciphertext
 
-    def ctr_decryption(self, message):
-        return self.ctr_encryption(message)
+    def ctr_decryption(self, cipher_message):
+        """Decrypts message through using counter mode by calling ctr_encryption because of XOR
+        :param str message:
+
+        :returns: Deciphered message
+        """
+        return self.ctr_encryption(cipher_message)
+
+
+def get_nonce():
+    """Creates 32 bit nonce
+    :returns: Integer nonce
+    """
+    return uuid.uuid4().int & (1 << 32) - 1
 
 
 def main():
-    """key = "thisisasecretkey"
-    cipher = BlowyFishy(key)
-
-    left, right = 0b01101001001000000110110001101111, 0b000000000000000000000000000000
-    print(f"Left: {left}, Right: {right}")
-    print("Encrypting:")
-    cl, cr = cipher.encrypt(left, right)
-    print(cl, cr)
-
-    print("Decrypting:")
-    dl, dr = cipher.decrypt(cl, cr)
-    print(dl, dr)"""
-
     key = "thisisasecretkey"
     block_cipher = BlowyFishy(key)
 

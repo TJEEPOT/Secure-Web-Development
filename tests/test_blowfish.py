@@ -8,7 +8,8 @@ class MyTestCase(unittest.TestCase):
         key = "thisisasecretkey"
 
         block_cipher = b.BlowyFishy(key)
-        mode_ctr = b.CTR(block_cipher)
+        nonce = b.get_nonce()
+        mode_ctr = b.CTR(block_cipher, nonce)
 
         encrypted_message = mode_ctr.ctr_encryption(message)
         decrypted_message = mode_ctr.ctr_decryption(encrypted_message)
@@ -20,11 +21,13 @@ class MyTestCase(unittest.TestCase):
         key = "thisisasecretkey"
 
         block_cipher = b.BlowyFishy(key)
-        mode_ctr = b.CTR(block_cipher)
+        nonce = b.get_nonce()
+        mode_ctr = b.CTR(block_cipher, nonce)
 
         encrypted_message = mode_ctr.ctr_encryption(message)
 
         self.assertNotEqual(encrypted_message, message)
+
 
 if __name__ == '__main__':
     unittest.main()
