@@ -78,17 +78,36 @@ def index():
 @app.route('/<uname>/')
 @std_context
 def users_posts(uname=None):
-    cid = db.get_user(uname)
-    if cid is None:
-        return 'User page not found.'
+    if request.method == 'GET':
+        cid = db.get_user(uname)
+        if cid is None:
+            return 'User page not found.'
 
-    def fix(item):
-        item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
-        return item
+        def fix(item):
+            item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
+            return item
 
-    context = request.context
-    context['posts'] = map(fix, db.get_posts(cid))
-    return render_template('user_posts.html', **context)
+        context = request.context
+        context['posts'] = map(fix, db.get_posts(cid))
+        #CS: if the currently logged in user is viewing their own posts
+        if session['userid'] == cid:
+            context['uname'] = uname
+            context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
+            context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)
+
+        return render_template('user_posts.html', **context)
+    else:
+        # going to have to check if the username, email have changed before sending to db
+        new_username = request.form.get('username', '')
+        new_email = request.form.get('email', '')
+        new_usetwofactor = request.form.get('twofactor')
+        new_password = request.form.get('password,' '')
+
+        error_msg = db.update_user(new_username, new_email, new_password, new_usetwofactor)
+        if not error_msg:
+            return render_template('user_posts.html', msg='Account created. Check your email for confirmation.')
+        else:
+            return render_template('user_posts.html', msg=error_msg)
 
 
 @app.route('/login/', methods=['GET', 'POST'])
