@@ -5,8 +5,7 @@ import unittest
 import db
 from blog import app
 
-# Integration testing for all components
-# more tests should be included for common attacks before this goes live
+# Integration testing for all components, includes common attacks
 
 
 def delete_user(user_id):
@@ -260,14 +259,14 @@ class MyTestCase(unittest.TestCase):
                     'content': '\' or 1=1 --'}
             response = client.post('/post/', data=data, follow_redirects=True)
             self.assertIn(b'<h2>&#39; or 1&#61;1 &#45;&#45;</h2>', response.data)  # title
-            self.assertIn(b'<p>\n            &#39; or 1&#61;1 &#45;&#45;...\n            </p>', response.data)
+            self.assertIn(b'<p>\n                &#39; or 1&#61;1 &#45;&#45;...\n                </p>', response.data)
 
             # test that a post containing malicious JS code will be disarmed (prevents Persistent XSS)
             data = {'title': '<script>alert(1)</script>',
                     'content': '<script>alert(1)</script>'}
             response = client.post('/post/', data=data, follow_redirects=True)
             self.assertIn(b'<h2>&#60;script&#62;alert(1)&#60;&#47;script&#62;</h2>', response.data)
-            self.assertIn(b'<p>\n            &#60;script&#62;alert(1)&#60;&#47;script&#62;...', response.data)
+            self.assertIn(b'<p>\n                &#60;script&#62;alert(1)&#60;&#47;script&#62;...', response.data)
 
             # clean up the db
             with app.app_context():
@@ -286,14 +285,14 @@ class MyTestCase(unittest.TestCase):
             # check that submitting a correct address will send a reset email
             data = {'email': 'a.king@fakeemailservice.abcde'}
             response = client.post('/reset/', data=data, follow_redirects=True)
-            self.assertIn(b'<p>Sent a reset link to a.king@fakeemailservice.abcde.</p>', response.data)
+            self.assertIn(b'If this address exists in our system we will send a reset request to you.', response.data)
 
             # TODO: submitting an email address not registered to an account should show the same result page as a
             #  registered email, the email sent should then invite them to sign up with an account.
             data = {'email': 'this.is.not.a.registered.email@someemail.uk'}
             response = client.post('/reset/', data=data, follow_redirects=True)
             # self.assertIn(b'<p>Sent an email to this.is.not.a.registered.email@someemail.uk.</p>', response.data)
-            self.assertIn(b'<p>No account with that email address.</p>', response.data)
+            self.assertIn(b'<p>If this address exists in our system we will send a reset request to you.</p>', response.data)
 
             # TODO: simulate clicking on the reset email link and invite email link to ensure they work correctly
 

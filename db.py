@@ -23,6 +23,7 @@ import sqlite3
 import time
 
 from dotenv import load_dotenv
+import re  # to validate two factor code now that it has been removed from validation
 from flask import g
 
 import auth
@@ -258,3 +259,92 @@ def del_two_factor(userid: str):
 def tick_down_two_factor_attempts(userid: str):
     current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?", (userid,), one=True)['attempts']
     update_db("UPDATE twofactor SET attempts =? WHERE user =?", ((current_attempts - 1), userid))
+
+
+def get_user_id_from_email(email: str):
+    query = "SELECT userid FROM users WHERE email=?"
+    userid = query_db(query, (email,), one=True)
+    if userid:
+        userid = userid['userid']
+    return userid
+
+
+def insert_reset_code(email: str, timestamp: str, code: str):
+    email = validation.validate_email(email)
+    userid = get_user_id_from_email(email)
+    ret = False
+    if userid is not None:
+        query = f"INSERT or REPLACE INTO reset_codes VALUES (?,?,?)"
+        insert_db(query, (userid, timestamp, code))
+        ret = True
+    return ret
+
+
+def delete_reset_code(email: str):
+    query = "DELETE FROM reset_codes WHERE user=?"
+    userid = get_user_id_from_email(email)
+    del_from_db(query, (userid,))
+
+
+def validate_reset_code(email: str, code: str):
+    email = validation.validate_email(email)
+    code = re.match(r"^[\w]{6}$", code)
+    code = code.string if code else None
+    ret = False
+    #   success
+    userid = get_user_id_from_email(email)
+    if userid is not None and code is not None:
+        userid = get_user_id_from_email(email)
+        query = "SELECT * FROM reset_codes WHERE user=? AND code=?"
+        result = query_db(query, (userid, code), one=True)
+        ret = result
+    return ret
+
+
+def insert_and_retrieve_reset_token(email: str, timestamp: str):
+    email = validation.validate_email(email)
+    userid = get_user_id_from_email(email)
+    first_query = "SELECT * FROM reset_codes WHERE user=?"
+    result = query_db(first_query, (userid,), one=True)
+    reset_time_stamp = result['timestamp']
+    code = result['code']
+    raw_token_string = email + str(userid) + code + reset_time_stamp
+    token = auth.ug4_hash(raw_token_string, 50)  # using Martin's hash function for a quick token
+    second_query = f"INSERT or REPLACE INTO reset_tokens VALUES (?,?,?)"
+    insert_db(second_query, (userid, timestamp, token))
+    return token
+
+
+def delete_reset_token(email: str):
+    email = validation.validate_email(email)
+    userid = get_user_id_from_email(email)
+    if userid is not None:
+        query = "DELETE FROM reset_tokens WHERE user=?"
+        del_from_db(query, (userid,))
+
+
+def get_reset_token(email: str):
+    email = validation.validate_email(email)
+    userid = get_user_id_from_email(email)
+    token = None
+    if userid is not None:
+        query = "SELECT token FROM reset_tokens WHERE user=?"
+        token = query_db(query, (userid,), one=True)['token']
+    return token
+
+
+def update_password_from_email(email: str, password: str):
+    email = validation.validate_email(email)
+    password = validation.validate_password(password)
+    userid = get_user_id_from_email(email)
+    ret = False
+    if userid is not None and password is not None:
+        first_query = "SELECT salt FROM users WHERE userid=?"
+        salt = query_db(first_query, (userid,), one=True)
+        salt = salt['salt']
+        password = auth.ug4_hash(password + salt + PEPPER)
+        query = "UPDATE users SET password =? WHERE userid =?"
+        update_db(query, (password, userid))
+        ret = True
+
+    return ret

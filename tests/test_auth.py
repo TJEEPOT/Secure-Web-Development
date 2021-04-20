@@ -1,5 +1,10 @@
+import datetime
 import unittest
+
+from flask import Flask
+
 import auth
+import blog
 
 
 class MyTestCase(unittest.TestCase):
@@ -44,6 +49,11 @@ class MyTestCase(unittest.TestCase):
                  67, 132, 140, 159, 223, 83, 207, 156, 170, 85, 45, 48, 240, 76, 5, 29, 216, 180, 133, 146, 235, 21,
                  56, 191, 3, 101, 70, 166, 74, 143, 28, 7, 46, 34, 103, 255]
         self.assertEqual(s_box, auth._gen_s_box())
+
+    def test_configure_app(self):
+        app = blog.app
+        auth.configure_app(app)
+        self.assertEqual(datetime.timedelta(days=1), app.permanent_session_lifetime)
 
 
 if __name__ == '__main__':

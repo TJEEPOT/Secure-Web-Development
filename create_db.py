@@ -86,6 +86,11 @@ def create():
 
     # CS: Login attempts table
     c.execute('''CREATE TABLE loginattempts (ip integer UNIQUE, attempts INTEGER default 0, lockouttime TEXT)''')
+
+    # Reset codes
+    c.execute('''CREATE TABLE reset_codes (user integer UNIQUE REFERENCES  users(userid), timestamp TEXT, code TEXT)''')
+    # Reset tokens
+    c.execute('''CREATE TABLE reset_tokens (user integer UNIQUE REFERENCES users(userid),timestamp TEXT, token TEXT)''')
     db.commit()
 
     user_id = 0
