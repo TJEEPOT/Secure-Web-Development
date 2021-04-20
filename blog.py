@@ -231,11 +231,11 @@ def create_account():
 
     error_msg = db.add_user(name, email, username, password)
     if not error_msg:
-        # TODO: send_confirmation_email()
+        emailer.send_account_confirmation(email, name)
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
 
     if error_msg == 'Email exists':  # specific fail case for email existing
-        # TODO: send_password_reset_email()
+        # TODO: emailer.send_reset_link(email, url)
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
     if error_msg:
         return render_template('auth/create_account.html', msg=error_msg)
