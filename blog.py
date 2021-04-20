@@ -75,7 +75,7 @@ def index():
     return render_template('blog/index.html', **context)
 
 
-@app.route('/<uname>/')
+@app.route('/<uname>/', methods=['GET', 'POST'])
 @std_context
 def users_posts(uname=None):
     if request.method == 'GET':
@@ -89,25 +89,29 @@ def users_posts(uname=None):
 
         context = request.context
         context['posts'] = map(fix, db.get_posts(cid))
-        #CS: if the currently logged in user is viewing their own posts
+        # CS: if the currently logged in user is viewing their own posts
         if session['userid'] == cid:
             context['uname'] = uname
             context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
-            context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)
+            context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
 
         return render_template('user_posts.html', **context)
     else:
-        # going to have to check if the username, email have changed before sending to db
+        cid = session['userid']
         new_username = request.form.get('username', '')
         new_email = request.form.get('email', '')
-        new_usetwofactor = request.form.get('twofactor')
-        new_password = request.form.get('password,' '')
-
-        error_msg = db.update_user(new_username, new_email, new_password, new_usetwofactor)
-        if not error_msg:
-            return render_template('user_posts.html', msg='Account created. Check your email for confirmation.')
+        new_usetwofactor = request.form.get('twofactor', 0)
+        if new_usetwofactor == 'on':
+            new_usetwofactor = 1
         else:
-            return render_template('user_posts.html', msg=error_msg)
+            new_usetwofactor = 0
+
+        error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
+        if not error_msg:
+            session['username'] = new_username
+            return redirect(url_for('users_posts', uname=new_username))
+        else:
+            return redirect(url_for('users_posts', uname=session['username'], msg=error_msg))
 
 
 @app.route('/login/', methods=['GET', 'POST'])
@@ -116,7 +120,7 @@ def login():
     if request.method == 'GET':
         context = request.context
         return render_template('auth/login.html', **context)
-    
+
     # CS: Capture IP address
     ip_address = request.remote_addr  # TODO: Could this be an attack vector (can the user specify this)?
     # CS: Insert it if it doesn't exist
@@ -125,7 +129,7 @@ def login():
     email = request.form.get('email', '')
     password = request.form.get('password', '')
     user_id, username = db.get_login(email, password)
-    
+
     if user_id is not None or username is not None:
         # valid session
         session['userid'] = user_id
@@ -138,7 +142,7 @@ def login():
         else:
             session['validated'] = True
         return redirect(url_for(url))
-    
+
     # CS: Update loginattempts for this IP
     login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,), one=True)['attempts']
     login_attempts += 1
@@ -155,7 +159,7 @@ def login():
         lockout_time = datetime.datetime.strptime(lockout_time, '%Y-%m-%d %H:%M:%S.%f')
     current_time = datetime.datetime.now()
     delta = datetime.timedelta(minutes=15)
-    
+
     if lockout_time is None or (current_time - delta) <= lockout_time:
         # CS: Set lockout time to current time
         db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address))
@@ -187,7 +191,7 @@ def verify_code():
     # if we're out of time, kick them back to the login screen
     def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
         db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
-        mins = round((curr_time - db_time).total_seconds() / 60)   # Why does timedelta not have a get minutes func!!!!1
+        mins = round((curr_time - db_time).total_seconds() / 60)  # Why does timedelta not have a get minutes func!!!!1
         limit = 5  # Max time for codes to work in minutes
         return mins < limit
 
@@ -240,8 +244,8 @@ def create_account():
     if request.method == 'GET':
         return render_template('auth/create_account.html')
 
-    name     = request.form.get('name', '')
-    email    = request.form.get('email', '')
+    name = request.form.get('name', '')
+    email = request.form.get('email', '')
     username = request.form.get('username', '')
     password = request.form.get('password', '')
 

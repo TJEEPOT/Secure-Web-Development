@@ -164,7 +164,7 @@ def add_user(name, email, username, password,):
     time.sleep(max((1 - processing_time), 0))  # ensure the processing time remains at least one second
     return None
 
-def update_user(userid, username, email, password, usetwofactor=0):
+def update_user(userid, username, email, usetwofactor):
     """ Validates and updates user details into DB on successful validation.
      :return: error message or None if validation was successful
      :rtype str:
@@ -174,34 +174,14 @@ def update_user(userid, username, email, password, usetwofactor=0):
     # validate the entered form details
     valid_email = validation.validate_email(email)
     valid_username = validation.validate_username(username)
-    valid_password = validation.validate_password(password)
 
     if not valid_email:
         return 'Email validation failed.'
     if not valid_username:
         return 'Username validation failed.'
-    if not valid_password:
-        return 'Password validation failed.'
 
-    # check if the user exists
-    query = "SELECT userid FROM users WHERE email=?"
-    email_exists = query_db(query, (valid_email,))
-    query = "SELECT userid FROM users WHERE username=?"
-    username_exists = query_db(query, (valid_username,))
-
-    if username_exists:
-        return 'Username already exists, please choose another.'  # does not require hiding since this is public info
-    if email_exists:
-        finish_time = time.time()
-        processing_time = finish_time - start_time
-        time.sleep(max((1 - processing_time), 0))  # conceal if the user already exists
-        return 'Email exists'
-
-    salt = auth.generate_salt()
-    password = valid_password + salt + PEPPER
-    pw_hash = auth.ug4_hash(password)
-    query = "UPDATE users SET username = ?, password = ?, email = ?, usetwofactor = ?, salt = ? WHERE userid = ?"
-    insert_db(query, (valid_username, pw_hash, valid_email, usetwofactor, salt, userid))
+    query = "UPDATE users SET username = ?, email = ?, usetwofactor = ? WHERE userid = ?"
+    update_db(query, (valid_username, valid_email, usetwofactor, userid))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
