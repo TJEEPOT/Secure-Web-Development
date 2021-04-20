@@ -9,7 +9,9 @@ Run `python create_db.py` to build the database and import the global variables 
 # Usage Notes
 Start the server with `python blog.py` from the root folder in your terminal. Connect your browser to 
 http://127.0.0.1:5000/ to see the site in action. If you're using 2fa, you will need to ensure 
-dsscw2blogacc@gmail.com is whitelisted in your email app.
+dsscw2blogacc@gmail.com is whitelisted in your email app, however due to us using Google Mail accounts in the way we 
+have, emails may still be restricted. Due to this, you can find copies of any messages that are emailed out by the 
+server printed in your server console.
 
 Good luck.
 
