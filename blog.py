@@ -97,7 +97,7 @@ def login():
         return render_template('auth/login.html', **context)
 
     # CS: Capture IP address
-    ip_address = request.remote_addr  # TODO: Could this be an attack vector (can the user specify this)?
+    ip_address = request.remote_addr
     # CS: Insert it if it doesn't exist
     db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
 
@@ -229,7 +229,11 @@ def create_account():
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
 
     if error_msg == 'Email exists':  # specific fail case for email existing
-        # TODO: emailer.send_reset_link(email, url)
+        code = auth.generate_code()
+        inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
+        if inserted:
+            url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
+            emailer.send_reset_link(email, url)
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
     if error_msg:
         return render_template('auth/create_account.html', msg=error_msg)
@@ -256,6 +260,9 @@ def new_post():
 
 @app.route('/reset/', methods=['GET', 'POST'])
 def reset():
+    if request.method == 'GET':
+        return render_template('auth/reset_request.html')
+
     email = request.form.get('email', '')
     code = auth.generate_code()
     inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
@@ -265,9 +272,7 @@ def reset():
         url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
         emailer.send_reset_link(email, url)
 
-    message = "If this address exists in our system we will send a reset request to you." \
-        if email else ""
-
+    message = "If this address exists in our system we will send a reset request to you."
     return render_template('auth/reset_request.html', message=message)
 
 
