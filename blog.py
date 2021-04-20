@@ -19,21 +19,18 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
-import os
+
 import re
 from functools import wraps
 
-from dotenv import load_dotenv
 from flask import Flask, g, render_template, redirect, request, session, url_for
 
+import auth
 import db
 import emailer
 
 app = Flask(__name__)
-
-load_dotenv(override=True)
-app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
-app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
+auth.configure_app(app)
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
@@ -88,7 +85,7 @@ def users_posts(uname=None):
 
     context = request.context
     context['posts'] = map(fix, db.get_posts(cid))
-    return render_template('user_posts.html', **context)
+    return render_template('blog/user_posts.html', **context)
 
 
 @app.route('/login/', methods=['GET', 'POST'])
@@ -284,7 +281,7 @@ def search_page():
     # for user in users:
     context['users'] = users
     context['query'] = validated_search
-    return render_template('search_results.html', **context)
+    return render_template('blog/search_results.html', **context)
 
 
 if __name__ == '__main__':
