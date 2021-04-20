@@ -49,8 +49,8 @@ def get_db():
     return db
 
 
-""" These functions have been designed to utilise a separate user login for each action, which requires an upgrade to a
-database with a server. """
+""" These functions have been designed to utilise a separate user login for each action, 
+which requires an upgrade to a database with a server. """
 def query_db(query, args=(), one=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
