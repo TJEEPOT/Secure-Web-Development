@@ -265,6 +265,7 @@ def new_post():
 def reset():
 
     email = request.form.get('email', '')
+
     # TODO this is a duplicate snippet from two factor code generation , refactor somewhere else
     code = ""
     selection = string.ascii_letters
