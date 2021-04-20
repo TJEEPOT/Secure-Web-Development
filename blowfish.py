@@ -15,6 +15,13 @@ History : 09/04/2021 - v1.0 - Create project file.
 
 """
 
+__author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
+__copyright__ = "Copyright 2021, CMP-UG4"
+__credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
+__version__ = "1.1"
+__email__ = "yea18qyu@uea.ac.uk"
+__status__ = "Development"  # or "Production"
+
 import uuid
 import constants
 
@@ -142,7 +149,7 @@ class CTR(BlowyFishy):
 
     def ctr_decryption(self, cipher_message):
         """Decrypts message through using counter mode by calling ctr_encryption because of XOR
-        :param str message:
+        :param str cipher_message: Bunch of gibberish that will be decrypted
 
         :returns: Deciphered message
         """
@@ -154,20 +161,3 @@ def get_nonce():
     :returns: Integer nonce
     """
     return uuid.uuid4().int & (1 << 32) - 1
-
-
-def main():
-    key = "thisisasecretkey"
-    block_cipher = BlowyFishy(key)
-
-    mode_ctr = CTR(block_cipher)
-    cipher = mode_ctr.ctr_encryption("i love cclove cors and sheep")
-    print("Cipher text:")
-    print(cipher)
-    decipher = mode_ctr.ctr_decryption(cipher)
-    print("Decipher text:")
-    print(decipher)
-
-
-if __name__ == '__main__':
-    main()
