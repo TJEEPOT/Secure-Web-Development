@@ -141,7 +141,9 @@ class CTR(BlowyFishy):
         return full_ciphertext
 
     def ctr_decryption(self, message):
-        return self.ctr_encryption(message)
+        msg = self.ctr_encryption(message)
+        msg = msg.strip("\0")
+        return msg
 
 
 def main():
@@ -168,6 +170,8 @@ def main():
     decipher = mode_ctr.ctr_decryption(cipher)
     print("Decipher text:")
     print(decipher)
+
+    assert "i love cclove cors and sheep" == decipher
 
 
 if __name__ == '__main__':
