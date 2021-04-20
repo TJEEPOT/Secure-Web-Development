@@ -95,12 +95,12 @@ def create():
 
     user_id = 0
     password = os.environ.get("UG_4_PW")
-    rand_password = 'password'  # TODO: might want to randomise the word used for the password?
+    rand_password = 'dfhfsdghjsfgskjs'  # TODO: might want to randomise the word used for the password?
     for user in USERS:
         if user == "Aleida King":
-            create_content(db, user_id, user, password, 1)  # TODO: Expected password
+            create_content(db, user_id, user, password, 1)  # Expected password
         elif user == "Billye Quayle":
-            create_content(db, user_id, user, password, 0)  # TODO: Same here for the non-authenticated test account
+            create_content(db, user_id, user, password, 0)  # Same here for the non-authenticated test account
         else:
             create_content(db, user_id, user, rand_password)
         user_id += 1

@@ -18,7 +18,9 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
+import random
 import secrets
+import string
 import time
 import binascii
 
@@ -257,6 +259,14 @@ def load(env_var, enc=False):
     """ Ensure the given variable is correctly encoded """
     # this will take in the given env var and decrypt it for use.
     pass
+
+
+def generate_code():
+    code = ""
+    selection = string.ascii_letters
+    for x in range(0, 6):
+        code += random.choice(selection)
+    return code
 
 
 if __name__ == "__main__":

@@ -34,8 +34,6 @@ DATABASE = os.environ.get("UG_4_DATABASE")
 PEPPER = os.environ.get("UG_4_PEP")
 
 
-# TODO: This is really badly written, will need rewriting and splitting into multiple functions for different
-#  accounts. (Issue 24) -MS
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -51,7 +49,8 @@ def get_db():
     return db
 
 
-# TODO: probably needs a rewrite or reimplementation for security. (issue 27) -MS
+""" These functions have been designed to utilise a separate user login for each action, which requires an upgrade to a
+database with a server. """
 def query_db(query, args=(), one=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
@@ -80,7 +79,6 @@ def del_from_db(query, args=()):
     conn.commit()
 
 
-# TODO: Rewrite (Issue 27) -MS
 def get_user(username):
     valid_user = validation.validate_username(username)
     query = "SELECT userid FROM users WHERE username=?"
@@ -152,7 +150,6 @@ def add_user(name, email, username, password):
         return 'Email exists'
 
     # if it's a new user, build their salt and hash and add them to the db
-    # TODO: might want to have another field here for activating the account after the user has clicked the email?
     salt = auth.generate_salt()
     password = valid_password + salt + PEPPER
     pw_hash = auth.ug4_hash(password)
