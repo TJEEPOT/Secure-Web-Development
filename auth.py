@@ -17,13 +17,15 @@ __version__ = "1.2"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import datetime
 import secrets
 import time
 import binascii
 
+import os
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+load_dotenv(override=True)  # load the env vars from file into OS
 
 
 def generate_salt():
@@ -239,6 +241,16 @@ def _gen_s_box():
         s[i - 1] = tmp
 
     return s
+
+
+def configure_app(app):
+    app.config["ENV"] = os.environ["UG_4_ENV"]
+    app.config["DEBUG"] = os.environ["UG_4_DEBUG"]
+    app.config["TESTING"] = os.environ["UG_4_TESTING"]
+    app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
+    app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
+    # for item in app.config.items():
+    #     print(item)
 
 
 def load(env_var, enc=False):
