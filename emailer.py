@@ -17,9 +17,7 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import os
-import secrets
 import smtplib
-import string
 import datetime
 import time
 
@@ -27,6 +25,7 @@ from email.message import EmailMessage
 from dotenv import load_dotenv
 
 import db
+from auth import generate_code
 
 load_dotenv(override=True)
 
@@ -65,15 +64,11 @@ def send_two_factor(uid, user_email):
     db.del_two_factor(uid)
 
     # build and save a new code
-    code = ""
-    selection = string.ascii_letters
-    for x in range(0, 6):
-        code += secrets.choice(selection)  # TODO: secrets library used (not sure if allowed)
+    code = generate_code()
     db.set_two_factor(uid, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
-    # TODO: This was intended to be reusable by blog.py, creating and destroying is meh
-
     e = Emailer()
     message = "Your Two-Factor code for UG-4 Secure Blogging site is: " + code
+
     if default_account:
         print(db.get_two_factor(uid))
     else:
@@ -102,8 +97,7 @@ def send_account_confirmation(user_email: str, name: str):
         default_account = True
 
     e = Emailer()
-    message = "Dear " + name + "\n\n This is confirmation you have created an account on our blog. Thank you."
-    # TODO: Account activation system perhaps? So the account is disabled until a link here is clicked.
+    message = "Dear " + name + "\n\nThis is confirmation you have created an account on our blog. Thank you."
     if default_account:
         print(user_email, ": Account created, please login.")
     else:
