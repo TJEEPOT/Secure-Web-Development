@@ -147,7 +147,6 @@ class CTR(BlowyFishy):
             counter += 1
         return full_ciphertext
 
-
     def ctr_decryption(self, cipher_message):
         """Decrypts message through using counter mode by calling ctr_encryption because of XOR
         :param str cipher_message: Bunch of gibberish that will be decrypted
