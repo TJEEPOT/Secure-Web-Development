@@ -14,5 +14,7 @@
         <p><input type="submit" name="new_account" value="Create Account" /></p>
     </form>
     <br>
-    {{ msg }}
+    {% autoescape false %}
+        {{ msg }}
+    {% endautoescape %}
 {% endblock %}

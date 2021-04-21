@@ -19,21 +19,19 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
-import os
 import re
 from functools import wraps
 
-from dotenv import load_dotenv
-from flask import Flask, g, render_template, redirect, request, session, url_for
+from flask import Flask, g, render_template, redirect, request, session, url_for, flash
 
+import auth
 import db
 import emailer
 
 app = Flask(__name__)
-
-load_dotenv(override=True)
-app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
-app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
+host = "127.0.0.1"
+port = "5000"
+auth.configure_app(app)
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
@@ -88,7 +86,7 @@ def users_posts(uname=None):
 
     context = request.context
     context['posts'] = map(fix, db.get_posts(cid))
-    return render_template('user_posts.html', **context)
+    return render_template('blog/user_posts.html', **context)
 
 
 @app.route('/login/', methods=['GET', 'POST'])
@@ -97,16 +95,16 @@ def login():
     if request.method == 'GET':
         context = request.context
         return render_template('auth/login.html', **context)
-    
+
     # CS: Capture IP address
-    ip_address = request.remote_addr  # TODO: Could this be an attack vector (can the user specify this)?
+    ip_address = request.remote_addr
     # CS: Insert it if it doesn't exist
     db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
 
     email = request.form.get('email', '')
     password = request.form.get('password', '')
     user_id, username = db.get_login(email, password)
-    
+
     if user_id is not None or username is not None:
         # valid session
         session['userid'] = user_id
@@ -119,7 +117,7 @@ def login():
         else:
             session['validated'] = True
         return redirect(url_for(url))
-    
+
     # CS: Update loginattempts for this IP
     login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,), one=True)['attempts']
     login_attempts += 1
@@ -136,7 +134,7 @@ def login():
         lockout_time = datetime.datetime.strptime(lockout_time, '%Y-%m-%d %H:%M:%S.%f')
     current_time = datetime.datetime.now()
     delta = datetime.timedelta(minutes=15)
-    
+
     if lockout_time is None or (current_time - delta) <= lockout_time:
         # CS: Set lockout time to current time
         db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address))
@@ -206,7 +204,6 @@ def login_fail():
     return render_template('auth/login_fail.html', **context)
 
 
-# TODO: Review this when doing sessions (Issue 28) -MS
 @app.route('/logout/')
 def logout():
     session.pop('userid', None)
@@ -228,11 +225,15 @@ def create_account():
 
     error_msg = db.add_user(name, email, username, password)
     if not error_msg:
-        # TODO: send_confirmation_email()
+        emailer.send_account_confirmation(email, name)
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
 
     if error_msg == 'Email exists':  # specific fail case for email existing
-        # TODO: send_password_reset_email()
+        code = auth.generate_code()
+        inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
+        if inserted:
+            url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
+            emailer.send_reset_link(email, url)
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
     if error_msg:
         return render_template('auth/create_account.html', msg=error_msg)
@@ -257,22 +258,65 @@ def new_post():
     return redirect('/')
 
 
-# TODO: Rewrite to hide if account exists or not (Issue 25) -MS
 @app.route('/reset/', methods=['GET', 'POST'])
-@std_context
 def reset():
     if request.method == 'GET':
         return render_template('auth/reset_request.html')
 
-    context = request.context
     email = request.form.get('email', '')
-    exists = db.get_email(email)
-    
-    if not exists:
-        return render_template('auth/no_email.html', **context)
+    code = auth.generate_code()
+    inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
 
-    context['email'] = email
-    return render_template('auth/sent_reset.html', **context)
+    if inserted:
+        # TODO is there a way to generate a link to a page with hostname and port from flask??
+        url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
+        emailer.send_reset_link(email, url)
+
+    message = "If this address exists in our system we will send a reset request to you."
+    return render_template('auth/reset_request.html', message=message)
+
+
+@app.route('/enter_reset/', methods=['GET', 'POST'])
+def enter_reset():
+    email = request.args.get('email')
+    code = request.args.get('code')
+    if not email or not code:
+        email = request.form.get('email', '')
+        code = request.form.get('code', '')
+
+    print(f'email: {email} code: {code}')
+    success = db.validate_reset_code(email, code)   # TODO add in time limits like two-factor after changes
+
+    if success:
+        token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        db.delete_reset_code(email)
+        return render_template('auth/reset_password.html', email=email, token=token)
+    message = ""
+    if email or code:
+        message = "Invalid email or reset code!"
+
+    return render_template('auth/enter_reset.html', message=message)
+
+
+@app.route('/reset_password/', methods=['GET', 'POST'])
+def reset_password():
+    # compare tokens
+
+    email = request.form.get('email', '')
+    token_from_form = request.form.get('token', '')
+    password = request.form.get('password', '')
+    if email and token_from_form and password:
+        token_from_db = db.get_reset_token(email)
+        if token_from_db == token_from_form:
+            password_changed = db.update_password_from_email(email, password)
+            if password_changed:
+                message = "Your password has been changed! Please login again."
+                flash(message)
+                return redirect(url_for('login'))
+        else:
+            message = "Something went wrong with your password reset. Please try again!"
+            return redirect(url_for('reset', message=message))
+    return render_template('auth/reset_password.html')
 
 
 @app.route('/search/')
@@ -285,8 +329,8 @@ def search_page():
     # for user in users:
     context['users'] = users
     context['query'] = validated_search
-    return render_template('search_results.html', **context)
+    return render_template('blog/search_results.html', **context)
 
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host, port)
