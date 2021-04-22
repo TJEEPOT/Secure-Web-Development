@@ -176,7 +176,7 @@ def get_posts(cid):
 def add_post(content, date, title, userid):
     query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
     validate_title = validation.validate_text(title, max_length=30)
-    validate_content = validation.validate_text(content)
+    validate_content = validation.parse_markup(validation.validate_text(content))
     insert_db(query, (userid, date, validate_title, validate_content))
 
 

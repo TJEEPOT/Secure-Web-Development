@@ -253,7 +253,6 @@ def new_post():
     date = datetime.datetime.now().timestamp()
     title = request.form.get('title')
     content = request.form.get('content')
-
     db.add_post(content, date, title, user_id)
     return redirect('/')
 
