@@ -263,7 +263,8 @@ def reset():
         emailer.send_reset_link(email, url)
 
     message = "If this address exists in our system we will send a reset request to you."
-    return render_template('auth/reset_request.html', message=message)
+    flash(message)
+    return render_template('auth/reset_request.html')
 
 
 @app.route('/enter_reset/', methods=['GET', 'POST'])
@@ -275,8 +276,10 @@ def enter_reset():
         code = request.form.get('code', '')
 
     print(f'email: {email} code: {code}')
-    success = db.validate_reset_code(email, code)   # TODO add in time limits like two-factor after changes
-    within_time = db.user_reset_code_within_time_limit(session['userid'])
+    success = db.validate_reset_code(email, code)
+    within_time = False
+    if email:
+        within_time = db.user_reset_code_within_time_limit(db.get_user_id_from_email(email))
     message = ""
     if success:
         if within_time:
@@ -285,10 +288,10 @@ def enter_reset():
         else:
             message = "That code has expired please start a new reset request!"
         db.delete_reset_code(email)
-    if not within_time and (email or code):
+    if within_time and (email or code):
         message = "Invalid email or reset code!"
-
-    return render_template('auth/enter_reset.html', message=message)
+    flash(message)
+    return render_template('auth/enter_reset.html')
 
 
 @app.route('/reset_password/', methods=['GET', 'POST'])
@@ -308,7 +311,8 @@ def reset_password():
                 return redirect(url_for('login'))
         else:
             message = "Something went wrong with your password reset. Please try again!"
-            return redirect(url_for('reset', message=message))
+            flash(message)
+            return redirect(url_for('reset'))
     return render_template('auth/reset_password.html')
 
 
