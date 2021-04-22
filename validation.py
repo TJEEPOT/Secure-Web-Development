@@ -73,7 +73,7 @@ def validate_text(user_input: str, max_length=max_post_length):
     for key, value in encoding_list.items():
         replaced_input = replaced_input.replace(key, value)
     replaced_input = re.sub(r"&(?!#\d*;)", "&#38;", replaced_input)  # replace & that are not part of previous replaces
-    re_re_dict = {      # undo in the case of valid markup (simplest way)
+    re_re_dict = {  # undo in the case of valid markup (simplest way)
         "b": "[/b]",
         "i": "[/i]",
         "u": "[/u]",
@@ -104,7 +104,7 @@ def parse_markup(user_input: str):
     }
     parsed_string = user_input
     for key, value in partner_dict.items():
-        escaped_value = value.replace("[", "\[").replace("]", "\]") # for the regex format
+        escaped_value = value.replace("[", "\[").replace("]", "\]")  # for the regex format
         end_tag_matches = re.finditer(rf'{escaped_value}', parsed_string)
         end_spans = [end_match.span() for end_match in [*end_tag_matches]]
         parsed_string = parsed_string.replace(value, change_dict[value])
