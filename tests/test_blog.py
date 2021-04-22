@@ -53,7 +53,8 @@ class MyTestCase(unittest.TestCase):
 
         self.assertIn(b'Check your email for confirmation', response.data)
         self.assertLess(0.95, time_diff)
-        self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
+        test_overhead = 1
+        self.assertGreater(1.05 + test_overhead, time_diff)  # needs to be high for batch testing
 
         # clean up the db
         delete_user(user_id)
