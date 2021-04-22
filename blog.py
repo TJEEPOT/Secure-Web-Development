@@ -162,17 +162,8 @@ def verify_code():
 
     # find the two-factor code in the database for this user
     two_factor = db.get_two_factor(uid)
-
-    # if we're out of time, kick them back to the login screen
-    def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
-        db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
-        mins = round((curr_time - db_time).total_seconds() / 60)   # Why does timedelta not have a get minutes func!!!!1
-        limit = 5  # Max time for codes to work in minutes
-        return mins < limit
-
     original_time = two_factor['timestamp']
-    time_now = datetime.datetime.now()
-    if not within_time_limit(original_time, time_now):
+    if not db.within_time_limit(original_time):
         return render_template('auth/login_fail.html', error='Code has expired. Please login again')
 
     # check the given code and fail them if it doesn't match
@@ -285,13 +276,16 @@ def enter_reset():
 
     print(f'email: {email} code: {code}')
     success = db.validate_reset_code(email, code)   # TODO add in time limits like two-factor after changes
-
-    if success:
-        token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        db.delete_reset_code(email)
-        return render_template('auth/reset_password.html', email=email, token=token)
+    within_time = db.user_reset_code_within_time_limit(session['userid'])
     message = ""
-    if email or code:
+    if success:
+        if within_time:
+            token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            return render_template('auth/reset_password.html', email=email, token=token)
+        else:
+            message = "That code has expired please start a new reset request!"
+        db.delete_reset_code(email)
+    if not within_time and (email or code):
         message = "Invalid email or reset code!"
 
     return render_template('auth/enter_reset.html', message=message)
