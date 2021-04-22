@@ -220,10 +220,12 @@ def tick_down_two_factor_attempts(userid: str):
 
 def get_user_id_from_email(email: str):
     query = "SELECT userid FROM users WHERE email=?"
-    userid = query_db(query, (email,), one=True)
-    if userid:
-        userid = userid['userid']
-    return userid
+    if email:
+        email = validation.validate_email(email)
+        userid = query_db(query, (email,), one=True)
+        if userid:
+            userid = userid['userid']
+        return userid
 
 
 def get_reset_codes(uid):
