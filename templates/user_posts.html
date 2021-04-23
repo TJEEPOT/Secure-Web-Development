@@ -18,12 +18,14 @@
             <hr>
                 <label for="email" style="width: inherit; margin-right: 5px;">Change Email:</label><input type="text" name="email" value="{{ email }}">
             <hr>
+                <input type="hidden" name="csrftoken" value="{{ session.CSRFtoken }}" />
                 <input type="submit" value="Save">
             </form>
             <hr>
             <form method="POST" action="/reset/">
                 <!-- hidden for reset form -->
-                <input type="text" name="email" value="{{ email }}" style="display: none;">
+                <input type="hidden" name="email" value="{{ email }}">
+                <input type="hidden" name="csrftoken" value="{{ session.CSRFtoken }}" />
                 <label for="password" style="width: inherit; margin-right: 5px;">Reset Password:</label><input type="submit" name="login" value="Send me a reset" />
             </form>
         </div>

@@ -61,9 +61,9 @@ def validate_username(user_input: str):
 
 # This is a simple email address validation that is not compliant with all email addresses but matches most common.
 # Rely on something else for primary email validation
-# TODO redo
 def validate_email(user_input: str):
-    matched = re.match(r"^\w+(\w|\.|-)*@\w+(\.|\w)+\w", user_input)
+    matched = re.match(r"[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*["
+                       r"a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", user_input)
     return matched.string if matched else matched
 
 

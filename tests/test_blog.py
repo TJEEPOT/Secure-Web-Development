@@ -110,17 +110,7 @@ class MyTestCase(unittest.TestCase):
         self.assertIn(b'Username validation failed.', response.data)
         data.update({'username': 'testing'})
 
-        # Actually, passwords don't need testing since they are hashed before storage, as long as login allows them.
-
-        # # test password sqli
-        # data.update({'password': '\' or 1=1;--'})
-        # response = client.post('/create_account/', data=data, follow_redirects=True)
-        # self.assertIn(b'Password validation failed.', response.data)
-        #
-        # # test password XSS
-        # data.update({'password': '<script>alert(1);</script>'})
-        # response = client.post('/create_account/', data=data, follow_redirects=True)
-        # self.assertIn(b'Password validation failed.', response.data)
+        # passwords don't need testing since they are hashed before storage, as long as login allows them.
 
     def test_index(self):
         response = app.test_client(self).get('/')
@@ -150,7 +140,7 @@ class MyTestCase(unittest.TestCase):
             # test that a correct username and password work - should return a result in around one second
             start_time = time.time()
             data = {'email': 'b.quayle@fakeemailservice.abcde',
-                    'password': 'password'}
+                    'password': 'password_1'}
             response = client.post('/login/', data=data, follow_redirects=True)
             time_diff = time.time() - start_time
 
@@ -174,7 +164,7 @@ class MyTestCase(unittest.TestCase):
             # test that an incorrect username does not work - should take around one second
             start_time = time.time()
             data = {'email': 'not.b.quayle@fakeemailservice.abcde',
-                    'password': 'password'}
+                    'password': 'password_1'}
             response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
             time_diff = time.time() - start_time
 
@@ -235,7 +225,7 @@ class MyTestCase(unittest.TestCase):
 
             # log in a user and ensure the test post doesn't exist yet
             data = {'email': 'b.quayle@fakeemailservice.abcde',
-                    'password': 'password'}
+                    'password': 'password_1'}
             response = client.post('/login/', data=data, follow_redirects=True)
 
             self.assertNotIn(b'<h2>test title</h2>', response.data)
@@ -287,20 +277,16 @@ class MyTestCase(unittest.TestCase):
             response = client.post('/reset/', data=data, follow_redirects=True)
             self.assertIn(b'If this address exists in our system we will send a reset request to you.', response.data)
 
-            # TODO: submitting an email address not registered to an account should show the same result page as a
-            #  registered email, the email sent should then invite them to sign up with an account.
             data = {'email': 'this.is.not.a.registered.email@someemail.uk'}
             response = client.post('/reset/', data=data, follow_redirects=True)
-            # self.assertIn(b'<p>Sent an email to this.is.not.a.registered.email@someemail.uk.</p>', response.data)
-            self.assertIn(b'<p>If this address exists in our system we will send a reset request to you.</p>', response.data)
+            self.assertIn(b'<p>If this address exists in our system we will send a reset', response.data)
 
-            # TODO: simulate clicking on the reset email link and invite email link to ensure they work correctly
 
     def test_search(self):
         with app.app_context():
             client = app.test_client()
 
-            # empty search returns all accounts TODO: (should this be changed?)
+            # empty search returns all accounts
             response = client.get('/search/', follow_redirects=True)
             self.assertIn(b'<h1>Search results</h1>', response.data)
             self.assertIn(b'<p><a href="/aking">aking</a></p>', response.data)
@@ -334,7 +320,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
             data = {'email': 'a.king@fakeemailservice.abcde',
-                    'password': 'password'}
+                    'password': 'password_1'}
             client.post('/login/', data=data, follow_redirects=True)
 
             # the token is sent at this point, so we can pull it out of the database now. This is equivalent to the
@@ -365,7 +351,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
             data = {'email': 'a.king@fakeemailservice.abcde',
-                    'password': 'password'}
+                    'password': 'password_1'}
             client.post('/login/', data=data, follow_redirects=True)
 
             # ensure if the user inputs a code too short, it is rejected without changing the attempts remaining

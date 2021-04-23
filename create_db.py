@@ -17,7 +17,7 @@ PEPPER = os.environ.get("UG_4_PEP")
 # From http://listofrandomnames.com/index.cfm?textarea
 USERS = map(lambda x: x.strip(), re.split('[\r\n]+', '''Aleida King  
 Billye Quayle  
-Mildred Beaty  
+Mildred Rrobot  
 Adeline Beyers  
 Tricia Wendel  
 Kizzy Bedoya  
@@ -26,12 +26,12 @@ Hulda Culberson
 Devona Morvant  
 Winston Tomasello  
 Dede Frame  
-Lissa Follansbee  
+Dade Murphy  
 Timmy Dapolito  
 Gracie Lonon  
 Nana Officer  
 Yuri Kruchten  
-Chante Brasch  
+Kate Libby  
 Edmond Toombs  
 Scott Schwan  
 Lean Beauregard  
@@ -52,7 +52,7 @@ Ena Haecker
 Huey Voelker  
 Annamae Basco  
 Florentina Quinlan  
-Eryn Chae  
+Thomas Anderson  
 Mozella Mcknight  
 Ruby Cobble  
 Jeannine Simerly  
@@ -63,13 +63,13 @@ Betsy Mendelsohn
 Nicolle Leverette  
 Bobette Tuel  
 Amy Nonymous  
-Danica Halverson  
+Elliot Alderson  
 Consuelo Crown'''))
 
 
 def create():
+    print("> Building Empty Database... ", end="")
     db = sqlite3.connect(DATABASE)
-
     c = db.cursor()
 
     c.execute(
@@ -92,19 +92,24 @@ def create():
     # Reset tokens
     c.execute('''CREATE TABLE reset_tokens (user integer UNIQUE REFERENCES users(userid),timestamp TEXT, token TEXT)''')
     db.commit()
+    print("Done.")
 
     user_id = 0
     password = os.environ.get("UG_4_PW")
-    rand_password = 'password'  # TODO: might want to randomise the word used for the password?
+    rand_password = 'dfhfsdghjsfgskjs'  # TODO: might want to randomise the word used for the password?
+    print("> Creating Users and Posts", end="")
     for user in USERS:
         if user == "Aleida King":
-            create_content(db, user_id, user, password, 1)  # TODO: Expected password
+            create_content(db, user_id, user, password, 1)  # Expected password
         elif user == "Billye Quayle":
-            create_content(db, user_id, user, password, 0)  # TODO: Same here for the non-authenticated test account
+            create_content(db, user_id, user, password, 0)  # Same here for the non-authenticated test account
         else:
             create_content(db, user_id, user, rand_password)
         user_id += 1
+        print(".", end="")
+    print(" Done.")
     db.commit()
+    print("\n> Database Created.")
 
 
 def create_content(db, user_id, name, password, twofac=0):
