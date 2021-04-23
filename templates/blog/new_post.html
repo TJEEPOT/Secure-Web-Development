@@ -6,6 +6,7 @@
     <form method="POST" action="/post/">
         <p><label for="Title">Title:</label><input name="title" id="title" /></p>
         <p><label for="content">Content:</label><textarea name="content" id="content" rows="10" cols="50"></textarea></p>
+        <input type="hidden" name="csrftoken" value="{{ session.CSRFtoken }}" />
         <p><input type="submit" name="post" value="Post" /></p>
     </form>
 {% endblock %}

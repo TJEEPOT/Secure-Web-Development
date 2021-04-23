@@ -24,9 +24,10 @@ import re
 from functools import wraps
 
 from dotenv import load_dotenv
-from flask import Flask, g, render_template, redirect, request, session, url_for
+from flask import Flask, g, render_template, redirect, request, session, url_for, flash
 
 import auth
+import blowfish
 import db
 import emailer
 import string
@@ -109,7 +110,14 @@ def users_posts(uname=None):
         else:
             new_usetwofactor = 0
 
-        error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
+        csrftoken = request.form.get('csrftoken')
+        block_cipher = blowfish.BlowyFishy(app.secret_key)
+        mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+        decrypted = mode_ctr.ctr_decryption(csrftoken)
+        if decrypted != app.secret_key:
+            error_msg = 'CSRF token invalid.'
+        else:
+            error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
         if not error_msg:
             session['username'] = new_username
             return redirect(url_for('users_posts', uname=new_username))
@@ -144,6 +152,12 @@ def login():
             url = emailer.send_two_factor(user_id, two_factor['email'])
         else:
             session['validated'] = True
+            key = app.secret_key
+            block_cipher = blowfish.BlowyFishy(key)
+            session['nonce'] = blowfish.get_nonce()
+            mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+            cipher = mode_ctr.ctr_encryption(app.secret_key)
+            session['CSRFtoken'] = cipher
         return redirect(url_for(url))
 
     # CS: Update loginattempts for this IP
@@ -220,6 +234,17 @@ def verify_code():
     # success
     session['validated'] = True
     db.del_two_factor(uid)  # remove that code from the db since it's been used
+    key = app.secret_key
+    block_cipher = blowfish.BlowyFishy(key)
+    session['nonce'] = blowfish.get_nonce()
+    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+    CSRF = app.secret_key
+    print('This is the decoded CSRF:')
+    print(CSRF)
+    cipher = mode_ctr.ctr_encryption(app.secret_key)
+    print("Cipher text:")
+    print(cipher)
+    session['CSRFtoken'] = cipher
     return redirect(url_for('index'))
 
 
@@ -238,6 +263,7 @@ def logout():
     session.pop('email', None)
     session.pop('validated', None)
     session.pop('loggedin', None)
+    session.pop('CSRFtoken', None)
     return redirect('/')
 
 
@@ -281,8 +307,15 @@ def new_post():
     date = datetime.datetime.now().timestamp()
     title = request.form.get('title')
     content = request.form.get('content')
-
-    db.add_post(content, date, title, user_id)
+    csrftoken = request.form.get('csrftoken')
+    block_cipher = blowfish.BlowyFishy(app.secret_key)
+    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+    decrypted = mode_ctr.ctr_decryption(csrftoken)
+    error_msg = ''
+    if decrypted != app.secret_key:
+        error_msg = 'CSRF token invalid.'
+    else:
+        db.add_post(content, date, title, user_id)
     return redirect('/')
 
 
@@ -362,4 +395,4 @@ def search_page():
 
 
 if __name__ == '__main__':
-    app.run(host, port)
+    app.run()
