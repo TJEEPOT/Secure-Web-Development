@@ -9,9 +9,16 @@ Date    : Friday 9 April 2021
 Desc.   : Containing constants of Pi used for encryption and decryption.
 History : 09/04/2021 - v1.0 - Create project file
           10/04/2021 - v1.1 - Added P and S boxes from https://www.schneier.com/wp-content/uploads/2015/12/constants-2.txt
-
+          10/04/2021 - v1.2 - Added modulo used in F-function
 
 """
+
+__author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
+__copyright__ = "Copyright 2021, CMP-UG4"
+__credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
+__version__ = "1.1"
+__email__ = "yea18qyu@uea.ac.uk"
+__status__ = "Development"  # or "Production"
 
 # Used https://www.schneier.com/wp-content/uploads/2015/12/constants-2.txt for hexadecimal digits of Pi
 
