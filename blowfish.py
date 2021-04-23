@@ -33,23 +33,25 @@ class BlowyFishy:
         if len(key) < 4 or len(key) > 56 or not key:
             raise Exception("Key length must be between 32 - 448 bits long.")
 
+        new_p_box = [None] * 18
         key_length = len(key)
         for i in range(len(constants.p_box)):
-            constants.p_box[i] ^= ord(key[i % key_length])
+            new_p_box[i] = constants.p_box[i] ^ ord(key[i % key_length])
 
         lhs, rhs = 0, 0
         # Changes all p-boxes
         for i in range(0, len(constants.p_box), 2):
             left_p, right_p = self.encrypt(lhs, rhs)
-            constants.p_box[i] = left_p
-            constants.p_box[i + 1] = right_p
+            new_p_box[i] = left_p
+            new_p_box[i + 1] = right_p
 
         # Changes all s-boxes
+        new_s_box = [[None] * 256] * 4
         for i in range(len(constants.s_box)):
             for j in range(0, len(constants.s_box[i]), 2):
                 left_s, right_s = self.encrypt(lhs, rhs)
-                constants.s_box[i][j] = left_s
-                constants.s_box[i][j + 1] = right_s
+                new_s_box[i][j] = left_s
+                new_s_box[i][j + 1] = right_s
 
     def encrypt(self, lhs, rhs):
         """Encrypts a block size of 64 bit plain text using Blowfish
