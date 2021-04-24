@@ -4,7 +4,7 @@
     {{ msg }}
     <ul class="content">
         <!--CS: too lazy to put this in the stylesheet properly-->
-    {% if username == uname %}
+    {% if session and session.username == uname %}
         <div style="
         top: 5px;
         width: inherit;

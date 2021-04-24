@@ -94,11 +94,11 @@ def users_posts(uname=None):
         context = request.context
         context['posts'] = map(fix, db.get_posts(cid))
         # CS: if the currently logged in user is viewing their own posts
-        if session['userid'] == cid:
-            context['uname'] = uname
-            context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
-            context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
-
+        if session:
+            if session['userid'] == cid:
+                context['uname'] = uname
+                context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
+                context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
         return render_template('user_posts.html', **context)
     else:
         cid = session['userid']
@@ -156,7 +156,7 @@ def login():
             block_cipher = blowfish.BlowyFishy(key)
             session['nonce'] = blowfish.get_nonce()
             mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-            cipher = mode_ctr.ctr_encryption(app.secret_key)
+            cipher = mode_ctr.ctr_encryption(key)
             session['CSRFtoken'] = cipher
         return redirect(url_for(url))
 
@@ -238,12 +238,7 @@ def verify_code():
     block_cipher = blowfish.BlowyFishy(key)
     session['nonce'] = blowfish.get_nonce()
     mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-    CSRF = app.secret_key
-    print('This is the decoded CSRF:')
-    print(CSRF)
-    cipher = mode_ctr.ctr_encryption(app.secret_key)
-    print("Cipher text:")
-    print(cipher)
+    cipher = mode_ctr.ctr_encryption(key)
     session['CSRFtoken'] = cipher
     return redirect(url_for('index'))
 
