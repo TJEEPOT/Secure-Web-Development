@@ -125,6 +125,7 @@ def add_user(name, email, username, password,):
     valid_email = validation.validate_email(email)
     valid_username = validation.validate_username(username)
     valid_password = validation.validate_password(password)
+    usetwofactor = 'off'
 
     if not valid_name:
         return 'Name validation failed.'
@@ -154,7 +155,7 @@ def add_user(name, email, username, password,):
     password = valid_password + salt + PEPPER
     pw_hash = auth.ug4_hash(password)
     query = "INSERT INTO users (username, name, password, email, usetwofactor, salt) VALUES (?,?,?,?,?,?)"
-    insert_db(query, (valid_username, valid_name, pw_hash, valid_email, salt))
+    insert_db(query, (valid_username, valid_name, pw_hash, valid_email, usetwofactor, salt))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
