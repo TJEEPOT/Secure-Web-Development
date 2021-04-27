@@ -67,3 +67,7 @@ nav a {
 nav form {
     display: inline;
 }
+
+#admin{
+    visibility: hidden;
+}
