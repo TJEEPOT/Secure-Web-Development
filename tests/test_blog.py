@@ -53,7 +53,8 @@ class MyTestCase(unittest.TestCase):
 
         self.assertIn(b'Check your email for confirmation', response.data)
         self.assertLess(0.95, time_diff)
-        self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
+        test_overhead = 3
+        self.assertGreater(1.05 + test_overhead, time_diff)  # needs to be high for batch testing
 
         # clean up the db
         delete_user(user_id)
@@ -269,7 +270,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # without giving an email address, we should get the reset request page
             response = client.get('/reset/')
-            self.assertIn(b'<h1>Login</h1>', response.data)
+            self.assertIn(b'<h1>Email Reset Request</h1>', response.data)
             self.assertNotIn(b'<label for="password">Password:</label>', response.data)
 
             # check that submitting a correct address will send a reset email
@@ -279,7 +280,76 @@ class MyTestCase(unittest.TestCase):
 
             data = {'email': 'this.is.not.a.registered.email@someemail.uk'}
             response = client.post('/reset/', data=data, follow_redirects=True)
-            self.assertIn(b'<p>If this address exists in our system we will send a reset', response.data)
+            self.assertIn(b'If this address exists in our system we will send a reset', response.data)
+
+    def test_reset_request(self):
+        data = {'email': 'b.quayle@fakeemailservice.abcde'}
+        with app.test_client() as client:
+            response = client.post('/reset/', data=data, follow_redirects=True)
+            #   get code from db
+            reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
+            code = reset_codes['code']
+            # valid code and email
+            data['code'] = code
+            response = client.post('/enter_reset/', data=data, follow_redirects=True)
+            self.assertIn(b'New password',response.data)
+            #invalid code
+            response = client.post('/reset/', data=data, follow_redirects=True)
+            data.pop('code')
+            data['code'] = "abadwejkdwokeoidjhaodijawiuadhuiadnediuashbd8yeadnijnmeoiauwhidsewdasoidjheo"
+            response = client.post('/enter_reset/', data=data, follow_redirects=True)
+            self.assertIn(b'Enter Reset Code', response.data)
+            # expired code
+            data.pop('code')
+            response = client.post('/reset/', data=data, follow_redirects=True)
+            reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
+            timestamp = reset_codes['timestamp']
+            dt_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+            dt_time = dt_time.replace(minute=(dt_time.minute-5))
+            db.update_db("UPDATE reset_codes SET timestamp =? WHERE user =?",
+                          (dt_time, db.get_user_id_from_email(data['email']) ))
+            reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
+            data['code'] = reset_codes['code']
+            response = client.post('/enter_reset/', data=data, follow_redirects=True)
+            self.assertIn(b'That code has expired please start a new reset request!', response.data)
+            # full link
+            data.pop('code')
+            response = client.post('/reset/', data=data, follow_redirects=True)
+            reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
+            data['code'] = reset_codes['code']
+            response = client.post(f"/enter_reset/?email={data['email']}&code={data['code']}", follow_redirects=True)
+            self.assertIn(b'New password', response.data)
+
+
+    def test_new_password(self):
+        data = {'email': 'b.quayle@fakeemailservice.abcde'}
+        with app.test_client() as client:
+            def get_to_reset():
+                response = client.post('/reset/', data=data, follow_redirects=True)
+                reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
+                data['code'] = reset_codes['code']
+                response = client.post(f"/enter_reset/?email={data['email']}&code={data['code']}", follow_redirects=True)
+                data.pop('code')
+            get_to_reset()
+            token = db.get_reset_token(data['email'])
+            data['token'] = token
+            data['password'] = 'password_1'
+            response = client.post('/reset_password/', data=data, follow_redirects=True)
+            self.assertIn(b'Your password has been changed! Please login again.', response.data)
+            # invalid token
+            data['token'] = "asduwdheiudasdenjjkasdnhiyuenasdnme"
+            response = client.post('/reset_password/', data=data, follow_redirects=True)
+            self.assertIn(b'Something went wrong with your password reset. Please try again!', response.data)
+            # invalid email
+            get_to_reset()
+            data['email'] = 'b.quayle@failme.please'
+            data['token'] = db.get_reset_token('b.quayle@fakeemailservice.abcde')
+            response = client.post(f'/reset_password/', data=data, follow_redirects=True)
+            self.assertIn(b'Something went wrong with your password reset. Please try again!', response.data)
+            data['email'] = 'b.quayle@fakeemailservice.abcde'
+            get_to_reset()
+            response = client.post(f'/reset_password/', follow_redirects=True)
+            self.assertIn(b'Enter A New Password', response.data)
 
 
     def test_search(self):

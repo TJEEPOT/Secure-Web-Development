@@ -18,6 +18,7 @@ __version__ = "1.3"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import datetime
 import os
 import sqlite3
 import time
@@ -51,6 +52,8 @@ def get_db():
 
 """ These functions have been designed to utilise a separate user login for each action, 
 which requires an upgrade to a database with a server. """
+
+
 def query_db(query, args=(), one=False):
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
@@ -176,7 +179,7 @@ def get_posts(cid):
 def add_post(content, date, title, userid):
     query = "INSERT INTO posts (creator, date, title, content) VALUES (?, ?, ?, ?)"
     validate_title = validation.validate_text(title, max_length=30)
-    validate_content = validation.validate_text(content)
+    validate_content = validation.parse_markup(validation.validate_text(content))
     insert_db(query, (userid, date, validate_title, validate_content))
 
 
@@ -190,7 +193,7 @@ def get_email(email):
 def get_users(search):
     query = "SELECT username FROM users WHERE username LIKE ? LIMIT 20"
     validated_search = validation.validate_text(search, max_length=30)
-    users = query_db(query, ('%'+validated_search+'%',))
+    users = query_db(query, ('%' + validated_search + '%',))
     return users, validated_search
 
 
@@ -217,10 +220,18 @@ def tick_down_two_factor_attempts(userid: str):
 
 def get_user_id_from_email(email: str):
     query = "SELECT userid FROM users WHERE email=?"
-    userid = query_db(query, (email,), one=True)
-    if userid:
-        userid = userid['userid']
-    return userid
+    if email:
+        email = validation.validate_email(email)
+        userid = query_db(query, (email,), one=True)
+        if userid:
+            userid = userid['userid']
+        return userid
+
+
+def get_reset_codes(uid):
+    query = "SELECT * FROM reset_codes WHERE user = ?"
+    result = query_db(query, (uid,), one=True)
+    return result
 
 
 def insert_reset_code(email: str, timestamp: str, code: str):
@@ -302,3 +313,23 @@ def update_password_from_email(email: str, password: str):
         ret = True
 
     return ret
+
+
+# if we're out of time, kick them back to the login screen
+def within_time_limit(db_time: datetime.datetime, curr_time=datetime.datetime.now()):
+    db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
+    mins = round((curr_time - db_time).total_seconds() / 60)  # Why does timedelta not have a get minutes func!!!!1
+    limit = 5  # Max time for codes to work in minutes
+    return mins < limit
+
+
+def user_twofactor_code_within_time_limit(user_id: str):
+    two_factor = get_two_factor(user_id)
+    original_time = two_factor['timestamp']
+    return within_time_limit(original_time)
+
+
+def user_reset_code_within_time_limit(user_id: str):
+    reset_codes = get_reset_codes(user_id)
+    original_time = reset_codes['timestamp']
+    return within_time_limit(original_time)

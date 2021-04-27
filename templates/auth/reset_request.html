@@ -1,12 +1,20 @@
 {% extends 'base.html' %}
 {% block title %}Reset Request{% endblock %}
 {% block content %}
-    <h1>Login</h1>
+    <h1>Email Reset Request</h1>
     <form method="POST" action="/reset/">
-        <p><label type="email" for="email">Email:</label><input name="email" id="email" /></p>
+        <p><label type="email" for="email">Email:</label><input type="email" name="email" id="email" required /></p>
         <p><input type="submit" name="login" value="Send me a reset" /></p>
     </form>
-    {% autoescape false %}
-        <p>{{message}}</p>
-    {% endautoescape %}
+    <div class="message">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    {% autoescape false %}
+                        {{ message }}
+                    {% endautoescape %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 {% endblock %}
