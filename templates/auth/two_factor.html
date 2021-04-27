@@ -5,8 +5,8 @@
     <h1>Confirmation</h1>
     <p>Please check your email account for Two Factor Authentication code and enter it below.</p>
     <form method="POST" action="/confirmation/">
-        <p><label for="code">Confirmation Code:</label><input name="code" id="code" maxlength="6" /></p>
+        <p><label for="code">Confirmation Code:</label><input name="code" id="code" type="text" maxlength="6" /></p>
         <p><input type="submit" name="send" value="Send" /></p>
     </form>
-    <p>{{error}}</p>
+    <p>{{error|safe}}</p>
 {% endblock %}

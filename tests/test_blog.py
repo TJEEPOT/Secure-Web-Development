@@ -135,7 +135,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # test that no data given returns the login page
             response = client.get('/login/')
-            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
+            self.assertIn(b'<input name="email" id="email" type="email" maxlength="64" />', response.data)
             self.assertNotIn(b'Check your email for confirmation', response.data)
 
             # test that a correct username and password work - should return a result in around one second
@@ -222,7 +222,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # without an active session, we should be redirected to the login page
             response = client.get('/post/', follow_redirects=True)
-            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
+            self.assertIn(b'<input name="email" id="email" type="email" maxlength="64" />', response.data)
 
             # log in a user and ensure the test post doesn't exist yet
             data = {'email': 'b.quayle@fakeemailservice.abcde',

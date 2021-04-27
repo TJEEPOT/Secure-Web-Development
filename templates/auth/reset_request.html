@@ -11,7 +11,7 @@
             {% if messages %}
                 {% for message in messages %}
                     {% autoescape false %}
-                        {{ message }}
+                        {{ message|safe }}
                     {% endautoescape %}
                 {% endfor %}
             {% endif %}
