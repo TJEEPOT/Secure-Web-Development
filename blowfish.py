@@ -13,46 +13,37 @@ History : 09/04/2021 - v1.0 - Create project file.
           18/04/2021 - v1.3 - Used Counter mode
           18/04/2021 - v1.4 - Created unit tests
           27/04/2021 - v1.5 - Added helper / wrapper functions for encrypt and decrypt
+          27/04/2021 - v1.6 - Removed generation of P and S boxes using encryption method, only sub-keys from P-boxes
+                              are generated.
+
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.5"
+__version__ = "1.6"
 __email__ = "yea18qyu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import uuid
-
 import constants
 
 
 class BlowyFishy:
-    def __init__(self, key: bytes):
+    def __init__(self, key: str):
         self.key = key
 
         if len(key) < 4 or len(key) > 56 or not key:
             raise Exception("Key length must be between 32 - 448 bits long.")
 
         new_p_box = [None] * 18
+        element = 0
         key_length = len(key)
         for i in range(len(constants.p_box)):
-            new_p_box[i] = constants.p_box[i] ^ key[i % key_length]
-
-        lhs, rhs = 0, 0
-        # Changes all p-boxes
-        for i in range(0, len(constants.p_box), 2):
-            left_p, right_p = self.encrypt(lhs, rhs)
-            new_p_box[i] = left_p
-            new_p_box[i + 1] = right_p
-
-        # Changes all s-boxes
-        new_s_box = [[None] * 256] * 4
-        for i in range(len(constants.s_box)):
-            for j in range(0, len(constants.s_box[i]), 2):
-                left_s, right_s = self.encrypt(lhs, rhs)
-                new_s_box[i][j] = left_s
-                new_s_box[i][j + 1] = right_s
+            input_key = (ord(key[element % key_length]) << 24) + (ord(key[(element + 1) % key_length]) << 16) + \
+                        (ord(key[(element + 2) % key_length]) << 8) + ord(key[(element + 3) % key_length])
+            new_p_box[i] = constants.p_box[i] ^ input_key
+            element += 4
 
     def encrypt(self, lhs, rhs):
         """Encrypts a block size of 64 bit plain text using Blowfish
