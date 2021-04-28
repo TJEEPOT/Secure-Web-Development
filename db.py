@@ -22,12 +22,14 @@ __status__ = "Development"  # or "Production"
 
 from datetime import datetime
 import os
+import re  # to validate two factor code now that it has been removed from validation
 import pathlib
 import re  # to validate two factor code now that it has been removed from validation
 import sqlite3
 import time
 
 from dotenv import load_dotenv
+import re  # to validate two factor code now that it has been removed from validation
 from flask import g
 
 import auth
@@ -261,10 +263,6 @@ def get_two_factor(uid):
     result['code'] = blowfish.decrypt(DBK, DBN, result['code'])
     return result
 
-
-def set_two_factor(userid: int, date_time: str, code: str):
-    # code is encrypted in the DB so encrypt it
-    encrypted_code = blowfish.encrypt(DBK, DBN, code)
 
 def set_two_factor(userid: str, date_time: str, code: str):
     # code is encrypted in the DB so encrypt it
