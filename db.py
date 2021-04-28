@@ -19,6 +19,7 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import os
+import pathlib
 import sqlite3
 import time
 
@@ -32,6 +33,7 @@ import validation
 load_dotenv(override=True)
 DATABASE = os.environ.get("UG_4_DATABASE")
 PEPPER = os.environ.get("UG_4_PEP")
+data_filename = pathlib.Path(__file__).with_name('bad_passwords.txt')
 
 
 def get_db():
@@ -134,6 +136,11 @@ def add_user(name, email, username, password):
         return 'Username validation failed.'
     if not valid_password:
         return 'Password validation failed.'
+    with open(data_filename, "r") as file:
+        for line in file:
+            line = line.strip("\n")
+            if password == line:
+                return 'Password entered is vulnerable to attacks'
 
     # check if the user exists
     query = "SELECT userid FROM users WHERE email=?"
@@ -293,6 +300,11 @@ def update_password_from_email(email: str, password: str):
     userid = get_user_id_from_email(email)
     ret = False
     if userid is not None and password is not None:
+        with open(data_filename, 'r') as file:
+            for line in file:
+                line = line.strip("\n")
+                if password == line:
+                    return ret
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
         salt = salt['salt']
