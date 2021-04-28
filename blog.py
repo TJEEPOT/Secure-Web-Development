@@ -19,19 +19,25 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
+import os
 import re
 from functools import wraps
 
+from dotenv import load_dotenv
 from flask import Flask, g, render_template, redirect, request, session, url_for, flash
 
 import auth
+import blowfish
 import db
 import emailer
+import string
+import random
 
 app = Flask(__name__)
-host = "127.0.0.1"
-port = "5000"
-auth.configure_app(app)
+
+load_dotenv(override=True)
+app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
+app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
@@ -73,20 +79,50 @@ def index():
     return render_template('blog/index.html', **context)
 
 
-@app.route('/<uname>/')
+@app.route('/<uname>/', methods=['GET', 'POST'])
 @std_context
 def users_posts(uname=None):
-    cid = db.get_user(uname)
-    if cid is None:
-        return 'User page not found.'
+    if request.method == 'GET':
+        cid = db.get_user(uname)
+        if cid is None:
+            return 'User page not found.'
 
-    def fix(item):
-        item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
-        return item
+        def fix(item):
+            item['date'] = datetime.datetime.fromtimestamp(item['date']).strftime('%Y-%m-%d %H:%M')
+            return item
 
-    context = request.context
-    context['posts'] = map(fix, db.get_posts(cid))
-    return render_template('blog/user_posts.html', **context)
+        context = request.context
+        context['posts'] = map(fix, db.get_posts(cid))
+        # CS: if the currently logged in user is viewing their own posts
+        if session:
+            if session['userid'] == cid:
+                context['uname'] = uname
+                context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
+                context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
+        return render_template('user_posts.html', **context)
+    else:
+        cid = session['userid']
+        new_username = request.form.get('username', '')
+        new_email = request.form.get('email', '')
+        new_usetwofactor = request.form.get('twofactor', 0)
+        if new_usetwofactor == 'on':
+            new_usetwofactor = 1
+        else:
+            new_usetwofactor = 0
+
+        csrftoken = request.form.get('csrftoken')
+        block_cipher = blowfish.BlowyFishy(app.secret_key)
+        mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+        decrypted = mode_ctr.ctr_decryption(csrftoken)
+        if decrypted != app.secret_key:
+            error_msg = 'CSRF token invalid.'
+        else:
+            error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
+        if not error_msg:
+            session['username'] = new_username
+            return redirect(url_for('users_posts', uname=new_username))
+        else:
+            return redirect(url_for('users_posts', uname=session['username'], msg=error_msg))
 
 
 @app.route('/login/', methods=['GET', 'POST'])
@@ -116,6 +152,12 @@ def login():
             url = emailer.send_two_factor(user_id, two_factor['email'])
         else:
             session['validated'] = True
+            key = app.secret_key
+            block_cipher = blowfish.BlowyFishy(key)
+            session['nonce'] = blowfish.get_nonce()
+            mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+            cipher = mode_ctr.ctr_encryption(key)
+            session['CSRFtoken'] = cipher
         return redirect(url_for(url))
 
     # CS: Update loginattempts for this IP
@@ -162,6 +204,13 @@ def verify_code():
 
     # find the two-factor code in the database for this user
     two_factor = db.get_two_factor(uid)
+    # if we're out of time, kick them back to the login screen
+    def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
+        db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
+        mins = round((curr_time - db_time).total_seconds() / 60)  # Why does timedelta not have a get minutes func!!!!1
+        limit = 5  # Max time for codes to work in minutes
+        return mins < limit
+
     original_time = two_factor['timestamp']
     if not db.within_time_limit(original_time):
         return render_template('auth/login_fail.html', error='Code has expired. Please login again')
@@ -183,6 +232,12 @@ def verify_code():
     # success
     session['validated'] = True
     db.del_two_factor(uid)  # remove that code from the db since it's been used
+    key = app.secret_key
+    block_cipher = blowfish.BlowyFishy(key)
+    session['nonce'] = blowfish.get_nonce()
+    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+    cipher = mode_ctr.ctr_encryption(key)
+    session['CSRFtoken'] = cipher
     return redirect(url_for('index'))
 
 
@@ -201,6 +256,7 @@ def logout():
     session.pop('email', None)
     session.pop('validated', None)
     session.pop('loggedin', None)
+    session.pop('CSRFtoken', None)
     return redirect('/')
 
 
@@ -244,11 +300,21 @@ def new_post():
     date = datetime.datetime.now().timestamp()
     title = request.form.get('title')
     content = request.form.get('content')
+    csrftoken = request.form.get('csrftoken')
+    block_cipher = blowfish.BlowyFishy(app.secret_key)
+    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
+    decrypted = mode_ctr.ctr_decryption(csrftoken)
+    error_msg = ''
+    if decrypted != app.secret_key:
+        error_msg = 'CSRF token invalid.'
+    else:
+        db.add_post(content, date, title, user_id)
     db.add_post(content, date, title, user_id)
     return redirect('/')
 
 
 @app.route('/reset/', methods=['GET', 'POST'])
+@std_context
 def reset():
     if request.method == 'GET':
         return render_template('auth/reset_request.html')
@@ -330,4 +396,4 @@ def search_page():
 
 
 if __name__ == '__main__':
-    app.run(host, port)
+    app.run()
