@@ -34,7 +34,6 @@ port = "5000"
 auth.configure_app(app)
 
 
-# TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
 def std_context(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -98,25 +97,37 @@ def login():
 
     # CS: Capture IP address
     ip_address = request.remote_addr
-    # CS: Insert it if it doesn't exist
-    db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
+
+    # check if they are locked out
+    lockout = db.get_lockout_time(ip_address)
+    if lockout is not None:
+        current_time = datetime.datetime.now()
+        delta = datetime.timedelta(minutes=15)
+
+        if (current_time - delta) <= lockout:
+            return redirect(url_for('login_fail', error='You are still locked out.'))
 
     email = request.form.get('email', '')
     password = request.form.get('password', '')
     user_id, username = db.get_login(email, password)
 
-    if user_id is not None or username is not None:
+    if user_id is not None and username is not None:
         # valid session
+        db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip_address, ))  # no need to continue tracking this
+
         session['userid'] = user_id
         session['username'] = username
 
-        two_factor = db.query_db('SELECT usetwofactor, email FROM users WHERE userid =?', (user_id,), one=True)
+        two_factor = db.find_two_factor(user_id)
         url = 'index'
         if two_factor['usetwofactor'] == 1:
             url = emailer.send_two_factor(user_id, two_factor['email'])
         else:
             session['validated'] = True
         return redirect(url_for(url))
+
+    # CS: Insert IP into db if it doesn't exist
+    db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
 
     # CS: Update loginattempts for this IP
     login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,), one=True)['attempts']
@@ -128,10 +139,7 @@ def login():
         return redirect(url_for('login_fail', error=f'Incorrect Login Details, {remaining_logins} attempts remaining.'))
 
     # CS: Check lockout time for this IP
-    query = 'SELECT lockouttime FROM loginattempts WHERE ip =?'
-    lockout_time = db.query_db(query, (ip_address,), one=True)['lockouttime']
-    if lockout_time is not None:
-        lockout_time = datetime.datetime.strptime(lockout_time, '%Y-%m-%d %H:%M:%S.%f')
+    lockout_time = db.get_lockout_time(ip_address)
     current_time = datetime.datetime.now()
     delta = datetime.timedelta(minutes=15)
 

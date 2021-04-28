@@ -30,7 +30,7 @@ class MyTestCase(unittest.TestCase):
         with app.app_context():
             # check the account is returned in around one second
             start_time = time.time()
-            account = db.get_login("a.king@fakeemailservice.abcde", "password_1")
+            account = db.get_login("a.king@fakeemailservice.abcde", "apassword_1")
             time_diff = time.time() - start_time
 
             self.assertEqual((0, 'aking'), account)
@@ -38,7 +38,7 @@ class MyTestCase(unittest.TestCase):
 
             # check the function returns None on incorrect username in around one second
             start_time = time.time()
-            account = db.get_login("IDoNotExist", "password_1")
+            account = db.get_login("IDoNotExist", "apassword_1")
             time_diff = time.time() - start_time
 
             self.assertIsNone(account[0])

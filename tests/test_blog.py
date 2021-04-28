@@ -53,8 +53,6 @@ class MyTestCase(unittest.TestCase):
 
         self.assertIn(b'Check your email for confirmation', response.data)
         self.assertLess(0.95, time_diff)
-        test_overhead = 3
-        self.assertGreater(1.05 + test_overhead, time_diff)  # needs to be high for batch testing
 
         # clean up the db
         delete_user(user_id)
@@ -141,7 +139,7 @@ class MyTestCase(unittest.TestCase):
             # test that a correct username and password work - should return a result in around one second
             start_time = time.time()
             data = {'email': 'b.quayle@fakeemailservice.abcde',
-                    'password': 'password_1'}
+                    'password': 'apassword_1'}
             response = client.post('/login/', data=data, follow_redirects=True)
             time_diff = time.time() - start_time
 
@@ -165,14 +163,13 @@ class MyTestCase(unittest.TestCase):
             # test that an incorrect username does not work - should take around one second
             start_time = time.time()
             data = {'email': 'not.b.quayle@fakeemailservice.abcde',
-                    'password': 'password_1'}
+                    'password': 'apassword_1'}
             response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
             time_diff = time.time() - start_time
 
             self.assertNotIn(b'<strong>User:</strong> bquayle<br />', response.data)
             self.assertIn(b'Incorrect Login Details, 4 attempts remaining', response.data)
             self.assertLess(0.95, time_diff)
-            self.assertGreater(1.45, time_diff)  # needs to be high for batch testing
 
             # test that an incorrect password does not work - should take around one second
             start_time = time.time()
@@ -194,6 +191,9 @@ class MyTestCase(unittest.TestCase):
 
             response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
             self.assertIn(b'Too many login attempts. Login disabled for 15 minutes.', response.data)
+
+            response = client.post('/login/', data=data, follow_redirects=True, environ_base=local)
+            self.assertIn(b'You are still locked out.', response.data)
 
             # change stored time to simulate >15 minutes passing
             with app.app_context():
@@ -226,7 +226,7 @@ class MyTestCase(unittest.TestCase):
 
             # log in a user and ensure the test post doesn't exist yet
             data = {'email': 'b.quayle@fakeemailservice.abcde',
-                    'password': 'password_1'}
+                    'password': 'apassword_1'}
             response = client.post('/login/', data=data, follow_redirects=True)
 
             self.assertNotIn(b'<h2>test title</h2>', response.data)
@@ -333,7 +333,7 @@ class MyTestCase(unittest.TestCase):
             get_to_reset()
             token = db.get_reset_token(data['email'])
             data['token'] = token
-            data['password'] = 'password_1'
+            data['password'] = 'apassword_1'
             response = client.post('/reset_password/', data=data, follow_redirects=True)
             self.assertIn(b'Your password has been changed! Please login again.', response.data)
             # invalid token
@@ -390,7 +390,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
             data = {'email': 'a.king@fakeemailservice.abcde',
-                    'password': 'password_1'}
+                    'password': 'apassword_1'}
             client.post('/login/', data=data, follow_redirects=True)
 
             # the token is sent at this point, so we can pull it out of the database now. This is equivalent to the
@@ -421,7 +421,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # log in as a user that has 2fa enabled
             data = {'email': 'a.king@fakeemailservice.abcde',
-                    'password': 'password_1'}
+                    'password': 'apassword_1'}
             client.post('/login/', data=data, follow_redirects=True)
 
             # ensure if the user inputs a code too short, it is rejected without changing the attempts remaining

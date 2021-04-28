@@ -9,30 +9,35 @@ History : 25/03/2021 - v1.0 - Load basic project file.
           02/04/2021 - v1.1 - Create add_user().
           03/04/2021 - v1.2 - Create get_login(), merge in get_salt() and get_password()
           06/04/2021 - v1.3 - Added validation to all input fields
+          27/04/2021 - v1.4 - Added database encryption/decryption code
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.3"
+__version__ = "1.4"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
 import os
+import re  # to validate two factor code now that it has been removed from validation
 import sqlite3
 import time
 
 from dotenv import load_dotenv
-import re  # to validate two factor code now that it has been removed from validation
 from flask import g
 
 import auth
+import blowfish
 import validation
 
 load_dotenv(override=True)
-DATABASE = os.environ.get("UG_4_DATABASE")
-PEPPER = os.environ.get("UG_4_PEP")
+SEK = bytes(os.environ["UG_4_SEK"], "utf-8")
+DBN = blowfish.decrypt(SEK, 0, os.environ["UG_4_DBN"])
+DATABASE = blowfish.decrypt(SEK, DBN, os.environ["UG_4_DATABASE"])
+PEPPER = blowfish.decrypt(SEK, DBN, os.environ["UG_4_PEP"])
+DBK = bytes(os.environ["UG_4_DB"], "utf-8")
 
 
 def get_db():
@@ -94,10 +99,13 @@ def get_login(email, password):
     valid_email = validation.validate_email(email)
     valid_password = validation.validate_password(password)
 
+    # email is encrypted in the DB so encrypt it
+    encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
+
     # Return the user's salt from the db or None if not found
     query = "SELECT salt FROM users WHERE email=?"
-    salt = query_db(query, (valid_email,), one=True)
-    if salt is None or valid_email is None or valid_password is None:
+    salt = query_db(query, (encrypted_email,), one=True)
+    if salt is None or encrypted_email is None or valid_password is None:
         finish_time = time.time()
         processing_time = finish_time - start_time
         time.sleep(max((1 - processing_time), 0))  # we want this entire function to take at least one second
@@ -107,7 +115,7 @@ def get_login(email, password):
     hashed_password = auth.ug4_hash(valid_password + salt + PEPPER)
 
     query = "SELECT userid, username FROM users WHERE email=? AND password=?"
-    details = query_db(query, (valid_email, hashed_password), one=True)
+    details = query_db(query, (encrypted_email, hashed_password), one=True)
 
     finish_time = time.time()
     processing_time = finish_time - start_time
@@ -138,9 +146,12 @@ def add_user(name, email, username, password):
     if not valid_password:
         return 'Password validation failed.'
 
+    # email is encrypted in the DB so encrypt it
+    encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
+
     # check if the user exists
     query = "SELECT userid FROM users WHERE email=?"
-    email_exists = query_db(query, (valid_email,))
+    email_exists = query_db(query, (encrypted_email,))
     query = "SELECT userid FROM users WHERE username=?"
     username_exists = query_db(query, (valid_username,))
 
@@ -152,12 +163,15 @@ def add_user(name, email, username, password):
         time.sleep(max((1 - processing_time), 0))  # conceal if the user already exists
         return 'Email exists'
 
+    # name is encrypted in the DB so encrypt it
+    encrypted_name = blowfish.encrypt(DBK, DBN, valid_name)
+
     # if it's a new user, build their salt and hash and add them to the db
     salt = auth.generate_salt()
     password = valid_password + salt + PEPPER
     pw_hash = auth.ug4_hash(password)
     query = "INSERT INTO users (username, name, password, email, salt) VALUES (?,?,?,?,?)"
-    insert_db(query, (valid_username, valid_name, pw_hash, valid_email, salt))
+    insert_db(query, (valid_username, encrypted_name, pw_hash, encrypted_email, salt))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
@@ -166,7 +180,7 @@ def add_user(name, email, username, password):
 
 
 def get_all_posts():
-    return query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.name,users.username FROM posts '
+    return query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.username FROM posts '
                     'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')
 
 
@@ -200,12 +214,21 @@ def get_users(search):
 def get_two_factor(uid):
     query = "SELECT * FROM twofactor WHERE user = ?"
     result = query_db(query, (uid,), one=True)
+
+    if result is None:
+        return None
+
+    # code is encrypted in the DB so decrypt it
+    result['code'] = blowfish.decrypt(DBK, DBN, result['code'])
     return result
 
 
-def set_two_factor(userid: str, datetime: str, code: str):
+def set_two_factor(userid: str, date_time: str, code: str):
+    # code is encrypted in the DB so encrypt it
+    encrypted_code = blowfish.encrypt(DBK, DBN, code)
+
     query = f"INSERT or REPLACE INTO twofactor VALUES (?,?,?,?)"
-    insert_db(query, (userid, datetime, code, 3))
+    insert_db(query, (userid, date_time, encrypted_code, 3))
 
 
 def del_two_factor(userid: str):
@@ -219,18 +242,28 @@ def tick_down_two_factor_attempts(userid: str):
 
 
 def get_user_id_from_email(email: str):
+    validated_email = validation.validate_email(email)
+    if validated_email is None:
+        return None
+
+    # email is encrypted in the DB so encrypt it
+    encrypted_email = blowfish.encrypt(DBK, DBN, validated_email)
+
     query = "SELECT userid FROM users WHERE email=?"
-    if email:
-        email = validation.validate_email(email)
-        userid = query_db(query, (email,), one=True)
-        if userid:
-            userid = userid['userid']
-        return userid
+    userid = query_db(query, (encrypted_email,), one=True)
+    if userid is None:
+        return None
+
+    userid = userid['userid']
+    return userid
 
 
 def get_reset_codes(uid):
     query = "SELECT * FROM reset_codes WHERE user = ?"
     result = query_db(query, (uid,), one=True)
+
+    # database item decryption
+    result["code"] = blowfish.decrypt(DBK, DBN, result["code"])
     return result
 
 
@@ -239,8 +272,10 @@ def insert_reset_code(email: str, timestamp: str, code: str):
     userid = get_user_id_from_email(email)
     ret = False
     if userid is not None:
+        # code is encrypted in the DB so encrypt it
+        encrypted_code = blowfish.encrypt(DBK, DBN, code)
         query = f"INSERT or REPLACE INTO reset_codes VALUES (?,?,?)"
-        insert_db(query, (userid, timestamp, code))
+        insert_db(query, (userid, timestamp, encrypted_code))
         ret = True
     return ret
 
@@ -252,23 +287,27 @@ def delete_reset_code(email: str):
 
 
 def validate_reset_code(email: str, code: str):
-    email = validation.validate_email(email)
+    valid_email = validation.validate_email(email)
     code = re.match(r"^[\w]{6}$", code)
-    code = code.string if code else None
+    valid_code = code.string if code else None
     ret = False
     #   success
-    userid = get_user_id_from_email(email)
-    if userid is not None and code is not None:
-        userid = get_user_id_from_email(email)
+    userid = get_user_id_from_email(valid_email)
+    if userid is not None and valid_code is not None:
+        # code is encrypted in the DB so encrypt it
+        encrypted_code = blowfish.encrypt(DBK, DBN, valid_code)
         query = "SELECT * FROM reset_codes WHERE user=? AND code=?"
-        result = query_db(query, (userid, code), one=True)
+        result = query_db(query, (userid, encrypted_code), one=True)
         ret = result
     return ret
 
 
 def insert_and_retrieve_reset_token(email: str, timestamp: str):
-    email = validation.validate_email(email)
-    userid = get_user_id_from_email(email)
+    valid_email = validation.validate_email(email)
+    userid = get_user_id_from_email(valid_email)
+    if userid is None:
+        return None
+
     first_query = "SELECT * FROM reset_codes WHERE user=?"
     result = query_db(first_query, (userid,), one=True)
     reset_time_stamp = result['timestamp']
@@ -281,16 +320,16 @@ def insert_and_retrieve_reset_token(email: str, timestamp: str):
 
 
 def delete_reset_token(email: str):
-    email = validation.validate_email(email)
-    userid = get_user_id_from_email(email)
+    valid_email = validation.validate_email(email)
+    userid = get_user_id_from_email(valid_email)
     if userid is not None:
         query = "DELETE FROM reset_tokens WHERE user=?"
         del_from_db(query, (userid,))
 
 
 def get_reset_token(email: str):
-    email = validation.validate_email(email)
-    userid = get_user_id_from_email(email)
+    valid_email = validation.validate_email(email)
+    userid = get_user_id_from_email(valid_email)
     token = None
     if userid is not None:
         query = "SELECT token FROM reset_tokens WHERE user=?"
@@ -299,9 +338,10 @@ def get_reset_token(email: str):
 
 
 def update_password_from_email(email: str, password: str):
-    email = validation.validate_email(email)
-    password = validation.validate_password(password)
-    userid = get_user_id_from_email(email)
+    valid_email = validation.validate_email(email)
+    valid_password = validation.validate_password(password)
+    userid = get_user_id_from_email(valid_email)
+
     ret = False
     if userid is not None and password is not None:
         first_query = "SELECT salt FROM users WHERE userid=?"
@@ -333,3 +373,20 @@ def user_reset_code_within_time_limit(user_id: str):
     reset_codes = get_reset_codes(user_id)
     original_time = reset_codes['timestamp']
     return within_time_limit(original_time)
+
+
+def find_two_factor(user_id):
+    query = 'SELECT usetwofactor, email FROM users WHERE userid =?'
+    results = query_db(query, (user_id,), one=True)
+
+    # email is encrypted in the DB so decrypt it
+    results['email'] = blowfish.decrypt(DBK, DBN, results['email'])
+    return results
+
+
+def get_lockout_time(ip_address):
+    query = 'SELECT lockouttime FROM loginattempts WHERE ip =?'
+    lockout_time = query_db(query, (ip_address,), one=True)
+    if lockout_time is None or lockout_time['lockouttime'] is None:
+        return None
+    return datetime.datetime.strptime(lockout_time['lockouttime'], '%Y-%m-%d %H:%M:%S.%f')
