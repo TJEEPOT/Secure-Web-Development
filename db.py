@@ -21,6 +21,7 @@ __status__ = "Development"  # or "Production"
 
 import datetime
 import os
+import pathlib
 import re  # to validate two factor code now that it has been removed from validation
 import sqlite3
 import time
@@ -38,6 +39,9 @@ DBN = blowfish.decrypt(SEK, 0, os.environ["UG_4_DBN"])
 DATABASE = blowfish.decrypt(SEK, DBN, os.environ["UG_4_DATABASE"])
 PEPPER = blowfish.decrypt(SEK, DBN, os.environ["UG_4_PEP"])
 DBK = bytes(os.environ["UG_4_DB"], "utf-8")
+DATABASE = os.environ.get("UG_4_DATABASE")
+PEPPER = os.environ.get("UG_4_PEP")
+data_filename = pathlib.Path(__file__).with_name('bad_passwords.txt')
 
 
 def get_db():
@@ -146,6 +150,11 @@ def add_user(name, email, username, password):
         return 'Username validation failed.'
     if not valid_password:
         return 'Password validation failed.'
+    with open(data_filename, "r") as file:
+        for line in file:
+            line = line.strip("\n")
+            if password == line:
+                return 'Password entered is vulnerable to attacks'
 
     # email is encrypted in the DB so encrypt it
     encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
@@ -375,6 +384,11 @@ def update_password_from_email(email: str, password: str):
 
     ret = False
     if userid is not None and password is not None:
+        with open(data_filename, 'r') as file:
+            for line in file:
+                line = line.strip("\n")
+                if password == line:
+                    return ret
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
         salt = salt['salt']
