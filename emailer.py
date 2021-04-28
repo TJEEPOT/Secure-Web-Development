@@ -16,30 +16,33 @@ __version__ = "1.1"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import datetime
 import os
 import smtplib
-import datetime
 import time
-
 from email.message import EmailMessage
+
 from dotenv import load_dotenv
 
+import blowfish
 import db
 from auth import generate_code
 
 load_dotenv(override=True)
+SEK = bytes(os.environ["UG_4_SEK"], "utf-8")
+DBN = blowfish.decrypt(SEK, 0, os.environ["UG_4_DBN"])
 
 
 class Emailer:
     def __init__(self):
-        self._account_name = os.environ.get("UG_4_EMAIL")
-        self._account_password = os.environ.get("UG_4_EPW")
+        self._account_name = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_EMAIL"))
+        self._account_password = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_EPW"))
 
     # Base function for sending emails
     def send_email(self, to_address: str, subject: str, message: str):
         mail_server = smtplib.SMTP('smtp.gmail.com', 587)  # This is using a TLS connection (not sure if allowed)
         mail_server.starttls()
-        self._account_name += os.environ.get("UG_4_EMAIL_TYPE")
+        self._account_name += blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_EMAIL_TYPE"))
         mail_server.login(self._account_name, self._account_password)
 
         email_message = EmailMessage()
@@ -105,15 +108,16 @@ def send_account_confirmation(user_email: str, name: str):
 
 
 if __name__ == '__main__':
-    time_now = datetime.datetime.now()
-    time.sleep(3)
-    time_now2 = datetime.datetime.now()
-    print(time_now)
-    print(time_now2)
-    print(time_now2 - time_now)
-    secs = (time_now2 - time_now).seconds
-    mins = time_now2.minute
-
-    print(secs >= 3)
-    print(secs)
-    print(mins)
+    # time_now = datetime.datetime.now()
+    # time.sleep(3)
+    # time_now2 = datetime.datetime.now()
+    # print(time_now)
+    # print(time_now2)
+    # print(time_now2 - time_now)
+    # secs = (time_now2 - time_now).seconds
+    # mins = time_now2.minute
+    #
+    # print(secs >= 3)
+    # print(secs)
+    # print(mins)
+    pass
