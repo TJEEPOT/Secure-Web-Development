@@ -266,6 +266,10 @@ def set_two_factor(userid: int, date_time: str, code: str):
     # code is encrypted in the DB so encrypt it
     encrypted_code = blowfish.encrypt(DBK, DBN, code)
 
+def set_two_factor(userid: str, date_time: str, code: str):
+    # code is encrypted in the DB so encrypt it
+    encrypted_code = blowfish.encrypt(DBK, DBN, code)
+
     query = f"INSERT or REPLACE INTO twofactor VALUES (?,?,?,?)"
     insert_db(query, (userid, date_time, encrypted_code, 3))
 
