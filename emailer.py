@@ -68,7 +68,7 @@ def send_two_factor(uid, user_email):
 
     # build and save a new code
     code = generate_code()
-    db.set_two_factor(uid, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
+    db.set_two_factor(uid, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), code)
     e = Emailer()
     message = "Your Two-Factor code for UG-4 Secure Blogging site is: " + code
 

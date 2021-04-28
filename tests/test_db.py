@@ -1,7 +1,15 @@
 import time
 import unittest
+from datetime import datetime
+
 import db
 from blog import app
+
+
+def delete_user(user_id):
+    with app.app_context():
+        query = """ DELETE FROM users WHERE userid=? """
+        db.del_from_db(query, (user_id,))
 
 
 class MyTestCase(unittest.TestCase):
@@ -58,13 +66,70 @@ class MyTestCase(unittest.TestCase):
             # check something is retrieved
             self.assertIsNotNone(db.get_all_posts())
 
-    # get_posts can not be tested.
+    def test_get_user(self):
+        with app.app_context():
+            user = db.get_user("aking")
+            self.assertEqual(0, user)
 
-    # def test_add_post(app_context):
+    def test_get_user_none(self):
+        with app.app_context():
+            user = db.get_user("user_that_does_not_exist")
+            self.assertIsNone(user)
 
-    # def test_get_email(app_context):
+    def test_add_user(self):
+        with app.app_context():
+            error = db.add_user("name", "name@email.sjse", "username", "password5643")
+            self.assertIsNone(error)
 
-    # def test_get_users(app_context):
+            # clear up
+            user = db.get_user("username")
+            delete_user(user)
+
+    def test_add_user_exists(self):
+        with app.app_context():
+            error = db.add_user("name", "name@email.sjse", "aking", "password5643")
+            self.assertEqual("Username already exists, please choose another.", error)
+
+    def test_add_user_email_exists(self):
+        with app.app_context():
+            error = db.add_user("name", "a.king@fakeemailservice.abcde", "user", "password5643")
+            self.assertEqual("Email exists", error)
+
+    def test_update_user(self):
+        with app.app_context():
+            error = db.update_user(0, "aking", "a.king@fakeemailservice.abcde", 0)
+            self.assertIsNone(error)
+            db.update_user(0, "aking", "a.king@fakeemailservice.abcde", 1)
+
+    def test_add_get_delete_post(self):
+        with app.app_context():
+            date = datetime.now().timestamp()
+            db.add_post("content", date, "title", 0)
+
+            post = db.get_post(0, "title")
+            self.assertIsNotNone(post)
+
+            db.delete_post(0, "title")
+
+    def test_get_users(self):
+        with app.app_context():
+            users, search = db.get_users("")
+            self.assertIsNotNone(users)
+            self.assertIsNotNone(search)
+
+    def test_set_get_delete_twofactor(self):
+        with app.app_context():
+            date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            db.set_two_factor(0, date, "abcde")
+            result = db.get_two_factor(0)
+            self.assertEqual("abcde", result["code"])
+
+            db.del_two_factor(0)
+
+    def test_get_two_factor_none(self):
+        with app.app_context():
+            code = db.get_two_factor(0)
+            self.assertIsNone(code)
 
 
 if __name__ == '__main__':

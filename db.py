@@ -124,7 +124,7 @@ def get_login(email, password):
     return (details['userid'], details['username']) if details else (None, None)
 
 
-def add_user(name, email, username, password,):
+def add_user(name, email, username, password):
     """ Validates and inserts user details into DB on successful validation.
     :return: error message or None if validation was successful
     :rtype str:
@@ -173,12 +173,13 @@ def add_user(name, email, username, password,):
     pw_hash = auth.ug4_hash(password)
 
     query = "INSERT INTO users (username, name, password, email, usetwofactor, salt) VALUES (?,?,?,?,?,?)"
-    insert_db(query, (valid_username, valid_name, pw_hash, valid_email, usetwofactor, salt))
+    insert_db(query, (valid_username, encrypted_name, pw_hash, encrypted_email, usetwofactor, salt))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
     time.sleep(max((1 - processing_time), 0))  # ensure the processing time remains at least one second
     return None
+
 
 def update_user(userid, username, email, usetwofactor):
     """ Validates and updates user details into DB on successful validation.
@@ -204,6 +205,7 @@ def update_user(userid, username, email, usetwofactor):
     time.sleep(max((1 - processing_time), 0))  # ensure the processing time remains at least one second
     return None
 
+
 def get_all_posts():
     return query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.username FROM posts '
                     'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')
@@ -222,11 +224,15 @@ def add_post(content, date, title, userid):
     insert_db(query, (userid, date, validate_title, validate_content))
 
 
-def get_email(email):
-    query = "SELECT email FROM users WHERE email=?"
-    valid_email = validation.validate_email(email)
-    found = query_db(query, (valid_email,), one=True)
+def get_post(userid, title):
+    query = "SELECT * from posts where creator=? AND title=?"
+    found = query_db(query, (userid, title), one=True)
     return found
+
+
+def delete_post(userid, title):
+    query = "DELETE FROM posts WHERE creator=? AND title=?"
+    del_from_db(query, (userid, title))
 
 
 def get_users(search):
@@ -248,7 +254,7 @@ def get_two_factor(uid):
     return result
 
 
-def set_two_factor(userid: str, date_time: str, code: str):
+def set_two_factor(userid: int, date_time: str, code: str):
     # code is encrypted in the DB so encrypt it
     encrypted_code = blowfish.encrypt(DBK, DBN, code)
 
@@ -256,12 +262,12 @@ def set_two_factor(userid: str, date_time: str, code: str):
     insert_db(query, (userid, date_time, encrypted_code, 3))
 
 
-def del_two_factor(userid: str):
+def del_two_factor(userid: int):
     query = "DELETE FROM twofactor WHERE user=?"
     del_from_db(query, (userid,))
 
 
-def tick_down_two_factor_attempts(userid: str):
+def tick_down_two_factor_attempts(userid: int):
     current_attempts = query_db("SELECT attempts FROM twofactor WHERE user=?", (userid,), one=True)['attempts']
     update_db("UPDATE twofactor SET attempts =? WHERE user =?", ((current_attempts - 1), userid))
 
