@@ -133,7 +133,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # test that no data given returns the login page
             response = client.get('/login/')
-            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
+            self.assertIn(b'<input name="email" id="email" type="email" maxlength="64" />', response.data)
             self.assertNotIn(b'Check your email for confirmation', response.data)
 
             # test that a correct username and password work - should return a result in around one second
@@ -222,7 +222,7 @@ class MyTestCase(unittest.TestCase):
         with app.test_client() as client:
             # without an active session, we should be redirected to the login page
             response = client.get('/post/', follow_redirects=True)
-            self.assertIn(b'<input name="email" id="email" maxlength="64" />', response.data)
+            self.assertIn(b'<input name="email" id="email" type="email" maxlength="64" />', response.data)
 
             # log in a user and ensure the test post doesn't exist yet
             data = {'email': 'b.quayle@fakeemailservice.abcde',
@@ -305,7 +305,8 @@ class MyTestCase(unittest.TestCase):
             reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
             timestamp = reset_codes['timestamp']
             dt_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-            dt_time = dt_time.replace(minute=(dt_time.minute-5))
+            delta = timedelta(minutes=-5)
+            dt_time = dt_time + delta
             db.update_db("UPDATE reset_codes SET timestamp =? WHERE user =?",
                           (dt_time, db.get_user_id_from_email(data['email']) ))
             reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
@@ -458,6 +459,7 @@ class MyTestCase(unittest.TestCase):
             self.assertIn(b'Incorrect code. Attempts remaining 1', response.data)
             response = client.post('/confirmation/', data=data, follow_redirects=True)
             self.assertIn(b'Too many failed attempts', response.data)
+
 
 
 if __name__ == '__main__':

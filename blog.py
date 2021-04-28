@@ -402,6 +402,9 @@ def search_page():
     context['query'] = validated_search
     return render_template('blog/search_results.html', **context)
 
-
+@app.route('/admin/')
+@std_context
+def admin_page():
+    return redirect("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
 if __name__ == '__main__':
     app.run()

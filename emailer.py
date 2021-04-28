@@ -105,19 +105,3 @@ def send_account_confirmation(user_email: str, name: str):
         print(user_email, ": Account created, please login.")
     else:
         e.send_email(user_email, "New account created", message)
-
-
-if __name__ == '__main__':
-    # time_now = datetime.datetime.now()
-    # time.sleep(3)
-    # time_now2 = datetime.datetime.now()
-    # print(time_now)
-    # print(time_now2)
-    # print(time_now2 - time_now)
-    # secs = (time_now2 - time_now).seconds
-    # mins = time_now2.minute
-    #
-    # print(secs >= 3)
-    # print(secs)
-    # print(mins)
-    pass

@@ -6,9 +6,9 @@
     <p>Enter your details below. Password must be between 8 and 32 characters. Username can be up to 32 characters
         but must not contain symbols other than hyphen (-) and underscore (_).</p>
     <form method="POST" action="/create_account/">
-        <p><label for="name">Name:</label><input  name="name" id="name" maxlength="64" /></p>
+        <p><label for="name">Name:</label><input  name="name" id="name" type="text"maxlength="64" /></p>
         <p><label for="email">Email:</label><input  name="email" id="email" type="email" /></p>
-        <p><label for="username">Username:</label><input name="username" id="username" maxlength="32" /></p>
+        <p><label for="username">Username:</label><input name="username" id="username" type="text" maxlength="32" /></p>
         <p><label for="password">Password:</label><input name="password" id="password" minlength="8" maxlength="64"
                                                          type="password" /></p>
         <p><input type="submit" name="new_account" value="Create Account" /></p>
