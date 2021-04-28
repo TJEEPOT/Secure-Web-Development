@@ -135,5 +135,5 @@ dmypy.json
 tests/coverage/*
 
 # Database
-database.sqlite
+db.sqlite
 /.editorconfig
