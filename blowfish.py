@@ -12,22 +12,23 @@ History : 09/04/2021 - v1.0 - Create project file.
           12/04/2021 - v1.2 - Added mode of operation for Blowfish cipher
           18/04/2021 - v1.3 - Used Counter mode
           18/04/2021 - v1.4 - Created unit tests
-
+          27/04/2021 - v1.5 - Added helper / wrapper functions for encrypt and decrypt
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.1"
+__version__ = "1.5"
 __email__ = "yea18qyu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import uuid
+
 import constants
 
 
 class BlowyFishy:
-    def __init__(self, key):
+    def __init__(self, key: bytes):
         self.key = key
 
         if len(key) < 4 or len(key) > 56 or not key:
@@ -36,7 +37,7 @@ class BlowyFishy:
         new_p_box = [None] * 18
         key_length = len(key)
         for i in range(len(constants.p_box)):
-            new_p_box[i] = constants.p_box[i] ^ ord(key[i % key_length])
+            new_p_box[i] = constants.p_box[i] ^ key[i % key_length]
 
         lhs, rhs = 0, 0
         # Changes all p-boxes
@@ -104,7 +105,7 @@ class BlowyFishy:
 
 
 class CTR(BlowyFishy):
-    def __init__(self, cipher, nonce):
+    def __init__(self, cipher, nonce: int):
         self.cipher = cipher
         self.nonce = nonce
 
@@ -124,11 +125,11 @@ class CTR(BlowyFishy):
 
         :return: New string that is enciphered
         """
-
         # List of the message split into blocks
         split_message_list = []
         for text_block in range(0, len(message), 8):
-            split_message_list.append(''.join(format(ord(i), 'b').zfill(8) for i in message[text_block: text_block + 8]))
+            split_message_list.append(
+                ''.join(format(ord(i), 'b').zfill(8) for i in message[text_block: text_block + 8]))
 
         # Pad final block if it is not 64 bits
         if len(split_message_list[-1]) != 64:
@@ -143,13 +144,14 @@ class CTR(BlowyFishy):
             block_cipher = (lhs << 32) + rhs
             ciphertext = int(plain_text, 2) ^ block_cipher
             formatted_binary = "{0:b}".format(ciphertext).zfill(64)
-            character = [chr(int(formatted_binary[binary:binary+8], 2)) for binary in range(0, len(formatted_binary), 8)]
+            character = [chr(int(formatted_binary[binary:binary + 8], 2)) for binary in
+                         range(0, len(formatted_binary), 8)]
             for c in character:
                 full_ciphertext += c
             counter += 1
         return full_ciphertext
 
-    def ctr_decryption(self, cipher_message):
+    def ctr_decryption(self, cipher_message: str):
         """Decrypts message through using counter mode by calling ctr_encryption because of XOR
         :param str cipher_message: Bunch of gibberish that will be decrypted
 
@@ -165,3 +167,47 @@ def get_nonce():
     :returns: Integer nonce
     """
     return uuid.uuid4().int & (1 << 32) - 1
+
+
+def encrypt(key, nonce, msg):
+    """ Helper function for encryption
+
+    :param key: Encryption key
+    :param nonce: Nonce to use, generated from get_nonce()
+    :param msg: Message to be encrypted
+    :return: Encrypted message
+    """
+    # ensure validation for inputs rather than assume
+    if type(key) is not bytes:
+        key = bytes(key, "utf-8")
+    if type(nonce) is not int:
+        nonce = int(nonce)
+    if type(msg) is not str:
+        msg = str(msg)
+
+    block_cipher = BlowyFishy(key)
+    mode_ctr = CTR(block_cipher, nonce)
+    encrypted_message = mode_ctr.ctr_encryption(msg)
+    return encrypted_message
+
+
+def decrypt(key, nonce, msg):
+    """ Helper function for decryption
+
+    :param key: Decryption key
+    :param nonce: Nonce to use, generated from get_nonce()
+    :param msg: Message to be decrypted
+    :return: Decrypted message
+    """
+    # ensure validation for inputs rather than assume
+    if type(key) is not bytes:
+        key = bytes(key, "utf-8")
+    if type(nonce) is not int:
+        nonce = int(nonce)
+    if type(msg) is not str:
+        msg = str(msg)
+
+    block_cipher = BlowyFishy(key)
+    mode_ctr = CTR(block_cipher, nonce)
+    decrypted_message = mode_ctr.ctr_decryption(msg)
+    return decrypted_message
