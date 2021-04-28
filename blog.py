@@ -204,7 +204,6 @@ def verify_code():
 
     # find the two-factor code in the database for this user
     two_factor = db.get_two_factor(uid)
-
     # if we're out of time, kick them back to the login screen
     def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
         db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
@@ -213,8 +212,7 @@ def verify_code():
         return mins < limit
 
     original_time = two_factor['timestamp']
-    time_now = datetime.datetime.now()
-    if not within_time_limit(original_time, time_now):
+    if not db.within_time_limit(original_time):
         return render_template('auth/login_fail.html', error='Code has expired. Please login again')
 
     # check the given code and fail them if it doesn't match
@@ -311,6 +309,7 @@ def new_post():
         error_msg = 'CSRF token invalid.'
     else:
         db.add_post(content, date, title, user_id)
+    db.add_post(content, date, title, user_id)
     return redirect('/')
 
 
@@ -330,7 +329,8 @@ def reset():
         emailer.send_reset_link(email, url)
 
     message = "If this address exists in our system we will send a reset request to you."
-    return render_template('auth/reset_request.html', message=message)
+    flash(message)
+    return render_template('auth/reset_request.html')
 
 
 @app.route('/enter_reset/', methods=['GET', 'POST'])
@@ -342,17 +342,22 @@ def enter_reset():
         code = request.form.get('code', '')
 
     print(f'email: {email} code: {code}')
-    success = db.validate_reset_code(email, code)   # TODO add in time limits like two-factor after changes
-
-    if success:
-        token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
-        db.delete_reset_code(email)
-        return render_template('auth/reset_password.html', email=email, token=token)
+    success = db.validate_reset_code(email, code)
+    within_time = False
+    if email:
+        within_time = db.user_reset_code_within_time_limit(db.get_user_id_from_email(email))
     message = ""
-    if email or code:
+    if success:
+        if within_time:
+            token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            return render_template('auth/reset_password.html', email=email, token=token)
+        else:
+            message = "That code has expired please start a new reset request!"
+        db.delete_reset_code(email)
+    if within_time and (email or code):
         message = "Invalid email or reset code!"
-
-    return render_template('auth/enter_reset.html', message=message)
+    flash(message)
+    return render_template('auth/enter_reset.html')
 
 
 @app.route('/reset_password/', methods=['GET', 'POST'])
@@ -372,7 +377,8 @@ def reset_password():
                 return redirect(url_for('login'))
         else:
             message = "Something went wrong with your password reset. Please try again!"
-            return redirect(url_for('reset', message=message))
+            flash(message)
+            return redirect(url_for('reset'))
     return render_template('auth/reset_password.html')
 
 

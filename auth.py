@@ -19,7 +19,6 @@ __status__ = "Development"  # or "Production"
 
 import datetime
 import random
-import secrets
 import string
 import time
 import binascii
@@ -43,7 +42,7 @@ def generate_salt():
     num_salt_chars = 32
 
     while num_salt_chars > 0:
-        salt += chars[secrets.randbelow(65)]  # randomly select one of the above chars
+        salt += chars[random.randrange(65)]  # randomly select one of the above chars
         num_salt_chars -= 1
     return salt
 
