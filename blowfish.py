@@ -12,10 +12,9 @@ History : 09/04/2021 - v1.0 - Create project file.
           12/04/2021 - v1.2 - Added mode of operation for Blowfish cipher
           18/04/2021 - v1.3 - Used Counter mode
           18/04/2021 - v1.4 - Created unit tests
-          27/04/2021 - v1.5 - Added helper / wrapper functions for encrypt and decrypt
-          27/04/2021 - v1.6 - Removed generation of P and S boxes using encryption method, only sub-keys from P-boxes
+          27/04/2021 - v1.5 - Removed generation of P and S boxes using encryption method, only sub-keys from P-boxes
                               are generated.
-
+          27/04/2021 - v1.6 - Added helper / wrapper functions for encrypt and decrypt
 """
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
