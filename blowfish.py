@@ -28,6 +28,8 @@ __status__ = "Development"  # or "Production"
 import uuid
 import constants
 
+new_p_box = [None] * 18
+
 
 class BlowyFishy:
     def __init__(self, key: str):
@@ -35,8 +37,7 @@ class BlowyFishy:
 
         if len(key) < 4 or len(key) > 56 or not key:
             raise Exception("Key length must be between 32 - 448 bits long.")
-
-        new_p_box = [None] * 18
+        print(new_p_box)
         element = 0
         key_length = len(key)
         for i in range(len(constants.p_box)):
@@ -44,6 +45,7 @@ class BlowyFishy:
                         (ord(key[(element + 2) % key_length]) << 8) + ord(key[(element + 3) % key_length])
             new_p_box[i] = constants.p_box[i] ^ input_key
             element += 4
+        print(new_p_box)
 
     def encrypt(self, lhs, rhs):
         """Encrypts a block size of 64 bit plain text using Blowfish
@@ -53,11 +55,11 @@ class BlowyFishy:
         :returns: int tuple of left and right hand side
         """
         for i in range(16):
-            lhs ^= constants.p_box[i]
+            lhs ^= new_p_box[i]
             rhs ^= self.f_func(lhs)
             lhs, rhs = rhs, lhs
-        lhs ^= constants.p_box[16]
-        rhs ^= constants.p_box[17]
+        lhs ^= new_p_box[16]
+        rhs ^= new_p_box[17]
         lhs, rhs = rhs, lhs
         return lhs, rhs
 
@@ -69,11 +71,11 @@ class BlowyFishy:
         :returns: int tuple of left and right hand side
         """
         for i in range(17, 1, -1):
-            lhs ^= constants.p_box[i]
+            lhs ^= new_p_box[i]
             rhs ^= self.f_func(lhs)
             lhs, rhs = rhs, lhs
-        lhs ^= constants.p_box[1]
-        rhs ^= constants.p_box[0]
+        lhs ^= new_p_box[1]
+        rhs ^= new_p_box[0]
         lhs, rhs = rhs, lhs
         return lhs, rhs
 
