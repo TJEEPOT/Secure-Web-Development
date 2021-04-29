@@ -40,8 +40,6 @@ DBN = blowfish.decrypt(SEK, 0, os.environ["UG_4_DBN"])
 DATABASE = blowfish.decrypt(SEK, DBN, os.environ["UG_4_DATABASE"])
 PEPPER = blowfish.decrypt(SEK, DBN, os.environ["UG_4_PEP"])
 DBK = bytes(os.environ["UG_4_DB"], "utf-8")
-DATABASE = os.environ.get("UG_4_DATABASE")
-PEPPER = os.environ.get("UG_4_PEP")
 data_filename = pathlib.Path(__file__).with_name('bad_passwords.txt')
 
 
@@ -378,13 +376,26 @@ def get_reset_token(email: str):
     return token
 
 
+def is_weak_password(password: str):
+    password = validation.validate_password(password)
+    ret = False
+    if password:    # needed incase validation fails
+        with open(data_filename, 'r') as file:
+            for line in file:
+                line = line.strip("\n")
+                if password == line:
+                    ret = True
+                    break
+    return ret
+
+
 def update_password_from_email(email: str, password: str):
     valid_email = validation.validate_email(email)
     valid_password = validation.validate_password(password)
     userid = get_user_id_from_email(valid_email)
 
     ret = False
-    if userid is not None and password is not None:
+    if userid is not None and valid_password is not None:
         with open(data_filename, 'r') as file:
             for line in file:
                 line = line.strip("\n")
