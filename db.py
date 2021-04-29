@@ -21,6 +21,7 @@ __status__ = "Development"  # or "Production"
 
 from datetime import datetime
 import os
+import pathlib
 import sqlite3
 import time
 
@@ -34,6 +35,7 @@ import validation
 load_dotenv(override=True)
 DATABASE = os.environ.get("UG_4_DATABASE")
 PEPPER = os.environ.get("UG_4_PEP")
+data_filename = pathlib.Path(__file__).with_name('bad_passwords.txt')
 
 
 def get_db():
@@ -117,7 +119,7 @@ def get_login(email, password):
     return (details['userid'], details['username']) if details else (None, None)
 
 
-def add_user(name, email, username, password):
+def add_user(name, email, username, password,):
     """ Validates and inserts user details into DB on successful validation.
     :return: error message or None if validation was successful
     :rtype str:
@@ -129,6 +131,7 @@ def add_user(name, email, username, password):
     valid_email = validation.validate_email(email)
     valid_username = validation.validate_username(username)
     valid_password = validation.validate_password(password)
+    usetwofactor = 'off'
 
     if not valid_name:
         return 'Name validation failed.'
@@ -138,6 +141,11 @@ def add_user(name, email, username, password):
         return 'Username validation failed.'
     if not valid_password:
         return 'Password validation failed.'
+    with open(data_filename, "r") as file:
+        for line in file:
+            line = line.strip("\n")
+            if password == line:
+                return 'Password entered is vulnerable to attacks'
 
     # check if the user exists
     query = "SELECT userid FROM users WHERE email=?"
@@ -157,14 +165,37 @@ def add_user(name, email, username, password):
     salt = auth.generate_salt()
     password = valid_password + salt + PEPPER
     pw_hash = auth.ug4_hash(password)
-    query = "INSERT INTO users (username, name, password, email, salt) VALUES (?,?,?,?,?)"
-    insert_db(query, (valid_username, valid_name, pw_hash, valid_email, salt))
+    query = "INSERT INTO users (username, name, password, email, usetwofactor, salt) VALUES (?,?,?,?,?,?)"
+    insert_db(query, (valid_username, valid_name, pw_hash, valid_email, usetwofactor, salt))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
     time.sleep(max((1 - processing_time), 0))  # ensure the processing time remains at least one second
     return None
 
+def update_user(userid, username, email, usetwofactor):
+    """ Validates and updates user details into DB on successful validation.
+     :return: error message or None if validation was successful
+     :rtype str:
+     """
+    start_time = time.time()
+
+    # validate the entered form details
+    valid_email = validation.validate_email(email)
+    valid_username = validation.validate_username(username)
+
+    if not valid_email:
+        return 'Email validation failed.'
+    if not valid_username:
+        return 'Username validation failed.'
+
+    query = "UPDATE users SET username = ?, email = ?, usetwofactor = ? WHERE userid = ?"
+    update_db(query, (valid_username, valid_email, usetwofactor, userid))
+
+    finish_time = time.time()
+    processing_time = finish_time - start_time
+    time.sleep(max((1 - processing_time), 0))  # ensure the processing time remains at least one second
+    return None
 
 def get_all_posts():
     return query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.name,users.username FROM posts '
@@ -305,6 +336,11 @@ def update_password_from_email(email: str, password: str):
     userid = get_user_id_from_email(email)
     ret = False
     if userid is not None and password is not None:
+        with open(data_filename, 'r') as file:
+            for line in file:
+                line = line.strip("\n")
+                if password == line:
+                    return ret
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
         salt = salt['salt']
