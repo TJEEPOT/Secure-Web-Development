@@ -18,7 +18,8 @@ __version__ = "1.3"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
-import datetime
+
+from datetime import datetime
 import os
 import sqlite3
 import time
@@ -316,11 +317,14 @@ def update_password_from_email(email: str, password: str):
 
 
 # if we're out of time, kick them back to the login screen
-def within_time_limit(db_time: datetime.datetime, curr_time=datetime.datetime.now()):
-    db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
-    mins = round((curr_time - db_time).total_seconds() / 60)  # Why does timedelta not have a get minutes func!!!!1
+def within_time_limit(db_time: str, curr_time=datetime.now()):
+    db_time_as_dt = datetime.strptime(db_time, '%Y-%m-%d %H:%M:%S')
+    curr_time = datetime.now()      # seriously you better be later than the db this time or someones getting unimported
+    difference = curr_time - db_time_as_dt
+    total_secs = difference.total_seconds()
+    total_mins = total_secs/60
     limit = 5  # Max time for codes to work in minutes
-    return mins < limit
+    return total_mins < limit
 
 
 def user_twofactor_code_within_time_limit(user_id: str):
