@@ -329,18 +329,23 @@ def get_reset_token(email: str):
         token = query_db(query, (userid,), one=True)['token']
     return token
 
-
+def is_weak_password(password: str):
+    password = validation.validate_password(password)
+    ret = False
+    if password:    # needed incase validation fails
+        with open(data_filename, 'r') as file:
+            for line in file:
+                line = line.strip("\n")
+                if password == line:
+                    ret = True
+                    break
+    return ret
 def update_password_from_email(email: str, password: str):
     email = validation.validate_email(email)
     password = validation.validate_password(password)
     userid = get_user_id_from_email(email)
     ret = False
     if userid is not None and password is not None:
-        with open(data_filename, 'r') as file:
-            for line in file:
-                line = line.strip("\n")
-                if password == line:
-                    return ret
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
         salt = salt['salt']
