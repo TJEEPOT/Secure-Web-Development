@@ -1,9 +1,11 @@
 from datetime import datetime, timedelta
 import time
+from unittest.mock import patch
 import unittest
 
 import db
 from blog import app
+
 
 # Integration testing for all components, includes common attacks
 
@@ -158,7 +160,7 @@ class MyTestCase(unittest.TestCase):
 
             # ensure loginattempts is empty
             with app.app_context():
-                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip, ))
+                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip,))
 
             # test that an incorrect username does not work - should take around one second
             start_time = time.time()
@@ -216,48 +218,57 @@ class MyTestCase(unittest.TestCase):
 
             # clear loginattempts
             with app.app_context():
-                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip, ))
+                db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip,))
 
     def test_new_post(self):
         with app.test_client() as client:
+            with patch("blog.session", dict()) as session:
             # without an active session, we should be redirected to the login page
-            response = client.get('/post/', follow_redirects=True)
-            self.assertIn(b'<input name="email" id="email" type="email" maxlength="64" />', response.data)
+                response = client.get('/post/', follow_redirects=True)
+                self.assertIn(b'<input name="email" id="email" type="email" maxlength="64" />', response.data)
 
-            # log in a user and ensure the test post doesn't exist yet
-            data = {'email': 'b.quayle@fakeemailservice.abcde',
-                    'password': 'apassword_1'}
-            response = client.post('/login/', data=data, follow_redirects=True)
+                # log in a user and ensure the test post doesn't exist yet
+                data = {'email': 'b.quayle@fakeemailservice.abcde',
+                        'password': 'apassword_1'}
+                response = client.post('/login/', data=data, follow_redirects=True)
 
-            self.assertNotIn(b'<h2>test title</h2>', response.data)
-            self.assertNotIn(b'test content...', response.data)
+                self.assertNotIn(b'<h2>test title</h2>', response.data)
+                self.assertNotIn(b'test content...', response.data)
 
-            # get the blog post page
-            response = client.get('/post/', follow_redirects=True)
-            self.assertIn(b'<h1>New Post</h1>', response.data)  # ensure the post page is returned
+                # get the blog post page
+                response = client.get('/post/', follow_redirects=True)
+                self.assertNotIn(b'CSRF token invalid.', response.data)
+                self.assertIn(b'<h1>New Post</h1>', response.data)  # ensure the post page is returned
 
-            # make a test post and check it's on the returned index page
-            data = {'title': 'test title',
-                    'content': 'test content'}
-            response = client.post('/post/', data=data, follow_redirects=True)
+                # make a test post and check it's on the returned index page
 
-            self.assertIn(b'<h2>Item', response.data)
-            self.assertIn(b'<h2>test title</h2>', response.data)
-            self.assertIn(b'test content...', response.data)
+                data = {'title': 'test title',
+                        'content': 'test [b]content[/b]',
+                        'csrftoken': session.get('CSRFtoken')}
+                response = client.post('/post/', data=data, follow_redirects=True)
 
-            # test that an sqli will be disarmed before being stored in the database
-            data = {'title': '\' or 1=1 --',
-                    'content': '\' or 1=1 --'}
-            response = client.post('/post/', data=data, follow_redirects=True)
-            self.assertIn(b'<h2>&#39; or 1&#61;1 &#45;&#45;</h2>', response.data)  # title
-            self.assertIn(b'<p>\n                &#39; or 1&#61;1 &#45;&#45;...\n                </p>', response.data)
+                self.assertNotIn(b'CSRF token invalid.', response.data)
+                self.assertIn(b'<h2>test title</h2>', response.data)
+                self.assertIn(b'test <b>content</b>...', response.data)
 
-            # test that a post containing malicious JS code will be disarmed (prevents Persistent XSS)
-            data = {'title': '<script>alert(1)</script>',
-                    'content': '<script>alert(1)</script>'}
-            response = client.post('/post/', data=data, follow_redirects=True)
-            self.assertIn(b'<h2>&#60;script&#62;alert(1)&#60;&#47;script&#62;</h2>', response.data)
-            self.assertIn(b'<p>\n                &#60;script&#62;alert(1)&#60;&#47;script&#62;...', response.data)
+                # test that an sqli will be disarmed before being stored in the database
+                data = {'title': '\' or 1=1 --',
+                        'content': '\' or 1=1 --',
+                        'csrftoken': session.get('CSRFtoken')}
+                response = client.post('/post/', data=data, follow_redirects=True)
+                self.assertNotIn(b'CSRF token invalid.', response.data)
+                self.assertIn(b'<h2>&#39; or 1&#61;1 &#45;&#45;</h2>', response.data)  # title
+                self.assertIn(b'<p>\n            &#39; or 1&#61;1 &#45;&#45;...\n            </p>', response.data)
+
+                # test that a post containing malicious JS code will be disarmed (prevents Persistent XSS)
+                data = {'title': '<script>alert(1)</script>',
+                        'content': '<script>alert(1)</script>',
+                        'csrftoken': session.get('CSRFtoken')}
+                response = client.post('/post/', data=data, follow_redirects=True)
+                self.assertNotIn(b'CSRF token invalid.', response.data)
+                self.assertIn(b'<h2>&#60;script&#62;alert(1)&#60;&#47;script&#62;</h2>', response.data)
+                self.assertIn(b'<p>\n            &#60;script&#62;alert(1)&#60;&#47;script&#62;...\n            </p>',
+                              response.data)
 
             # clean up the db
             with app.app_context():
@@ -285,62 +296,68 @@ class MyTestCase(unittest.TestCase):
     def test_reset_request(self):
         data = {'email': 'b.quayle@fakeemailservice.abcde'}
         with app.test_client() as client:
-            response = client.post('/reset/', data=data, follow_redirects=True)
+            client.post('/reset/', data=data, follow_redirects=True)
             #   get code from db
             reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
             code = reset_codes['code']
+
             # valid code and email
             data['code'] = code
             response = client.post('/enter_reset/', data=data, follow_redirects=True)
-            self.assertIn(b'New password',response.data)
-            #invalid code
-            response = client.post('/reset/', data=data, follow_redirects=True)
+            self.assertIn(b'New password', response.data)
+
+            # invalid code
+            client.post('/reset/', data=data, follow_redirects=True)
             data.pop('code')
             data['code'] = "abadwejkdwokeoidjhaodijawiuadhuiadnediuashbd8yeadnijnmeoiauwhidsewdasoidjheo"
             response = client.post('/enter_reset/', data=data, follow_redirects=True)
             self.assertIn(b'Enter Reset Code', response.data)
+
             # expired code
             data.pop('code')
-            response = client.post('/reset/', data=data, follow_redirects=True)
+            client.post('/reset/', data=data, follow_redirects=True)
             reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
             timestamp = reset_codes['timestamp']
             dt_time = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-            delta = timedelta(minutes=-5)
+            delta = timedelta(minutes=-10)
             dt_time = dt_time + delta
             db.update_db("UPDATE reset_codes SET timestamp =? WHERE user =?",
-                          (dt_time, db.get_user_id_from_email(data['email']) ))
+                         (dt_time, db.get_user_id_from_email(data['email'])))
             reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
             data['code'] = reset_codes['code']
             response = client.post('/enter_reset/', data=data, follow_redirects=True)
             self.assertIn(b'That code has expired please start a new reset request!', response.data)
+
             # full link
             data.pop('code')
-            response = client.post('/reset/', data=data, follow_redirects=True)
+            client.post('/reset/', data=data, follow_redirects=True)
             reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
             data['code'] = reset_codes['code']
             response = client.post(f"/enter_reset/?email={data['email']}&code={data['code']}", follow_redirects=True)
             self.assertIn(b'New password', response.data)
 
-
     def test_new_password(self):
         data = {'email': 'b.quayle@fakeemailservice.abcde'}
         with app.test_client() as client:
             def get_to_reset():
-                response = client.post('/reset/', data=data, follow_redirects=True)
+                client.post('/reset/', data=data, follow_redirects=True)
                 reset_codes = db.get_reset_codes(db.get_user_id_from_email(data['email']))
                 data['code'] = reset_codes['code']
-                response = client.post(f"/enter_reset/?email={data['email']}&code={data['code']}", follow_redirects=True)
+                client.post(f"/enter_reset/?email={data['email']}&code={data['code']}", follow_redirects=True)
                 data.pop('code')
+
             get_to_reset()
             token = db.get_reset_token(data['email'])
             data['token'] = token
             data['password'] = 'apassword_1'
             response = client.post('/reset_password/', data=data, follow_redirects=True)
             self.assertIn(b'Your password has been changed! Please login again.', response.data)
+
             # invalid token
             data['token'] = "asduwdheiudasdenjjkasdnhiyuenasdnme"
             response = client.post('/reset_password/', data=data, follow_redirects=True)
             self.assertIn(b'Something went wrong with your password reset. Please try again!', response.data)
+
             # invalid email
             get_to_reset()
             data['email'] = 'b.quayle@failme.please'
@@ -351,7 +368,6 @@ class MyTestCase(unittest.TestCase):
             get_to_reset()
             response = client.post(f'/reset_password/', follow_redirects=True)
             self.assertIn(b'Enter A New Password', response.data)
-
 
     def test_search(self):
         with app.app_context():
@@ -420,46 +436,46 @@ class MyTestCase(unittest.TestCase):
 
     def test_two_factor_authentication_failure(self):
         with app.test_client() as client:
-            # log in as a user that has 2fa enabled
-            data = {'email': 'a.king@fakeemailservice.abcde',
-                    'password': 'apassword_1'}
-            client.post('/login/', data=data, follow_redirects=True)
+            with patch("blog.session", dict()) as session:
+                # log in as a user that has 2fa enabled
+                data = {'email': 'a.king@fakeemailservice.abcde',
+                        'password': 'apassword_1'}
+                client.post('/login/', data=data, follow_redirects=True)
 
-            # ensure if the user inputs a code too short, it is rejected without changing the attempts remaining
-            data = {'code': 'a'}
-            response = client.post('/confirmation/', data=data, follow_redirects=True)
-            self.assertIn(b'Code is invalid, please try again.', response.data)
+                # ensure if the user inputs a code too short, it is rejected without changing the attempts remaining
+                data = {'code': 'a'}
+                response = client.post('/confirmation/', data=data, follow_redirects=True)
+                self.assertIn(b'Code is invalid, please try again.', response.data)
 
-            # ensure if the wrong code is entered, it reduces the number of tries remaining
-            data = {'code': 'aaaaaa'}
-            response = client.post('/confirmation/', data=data, follow_redirects=True)
-            self.assertIn(b'Incorrect code. Attempts remaining 2', response.data)
+                # ensure if the wrong code is entered, it reduces the number of tries remaining
+                data = {'code': 'aaaaaa'}
+                response = client.post('/confirmation/', data=data, follow_redirects=True)
+                self.assertIn(b'Incorrect code. Attempts remaining 2', response.data)
 
-            # adjust the timestamp of the code so the request gives an out-of-time error
-            with app.app_context():
-                ten_minutes_ago = datetime.now() - timedelta(minutes=10)
-                time_formatted = ten_minutes_ago.strftime('%Y-%m-%d %H:%M:%S')  # remove the microseconds
-                ten_minutes_ago = datetime.strptime(time_formatted, '%Y-%m-%d %H:%M:%S')
-                query = "UPDATE twofactor SET timestamp=? WHERE user=0"
-                db.update_db(query, (ten_minutes_ago,))
+                # adjust the timestamp of the code so the request gives an out-of-time error
+                with app.app_context():
+                    ten_minutes_ago = datetime.now() - timedelta(minutes=10)
+                    time_formatted = ten_minutes_ago.strftime('%Y-%m-%d %H:%M:%S')  # remove the microseconds
+                    ten_minutes_ago = datetime.strptime(time_formatted, '%Y-%m-%d %H:%M:%S')
+                    query = "UPDATE twofactor SET timestamp=? WHERE user=0"
+                    db.update_db(query, (ten_minutes_ago,))
 
-            response = client.post('/confirmation/', data=data, follow_redirects=True)
-            self.assertIn(b'Code has expired. Please login again', response.data)
+                response = client.post('/confirmation/', data=data, follow_redirects=True)
+                self.assertIn(b'Code has expired. Please login again', response.data)
 
-            # return the timestamp to now
-            with app.app_context():
-                now = datetime.now()
-                now_formatted = now.strftime('%Y-%m-%d %H:%M:%S')  # remove the microseconds
-                now = datetime.strptime(now_formatted, '%Y-%m-%d %H:%M:%S')
-                query = "UPDATE twofactor SET timestamp=? WHERE user=0"
-                db.update_db(query, (now,))
+                # return the timestamp to now
+                with app.app_context():
+                    now = datetime.now()
+                    now_formatted = now.strftime('%Y-%m-%d %H:%M:%S')  # remove the microseconds
+                    now = datetime.strptime(now_formatted, '%Y-%m-%d %H:%M:%S')
+                    query = "UPDATE twofactor SET timestamp=? WHERE user=0"
+                    db.update_db(query, (now,))
 
-            # use up the remaining two attempts
-            response = client.post('/confirmation/', data=data, follow_redirects=True)
-            self.assertIn(b'Incorrect code. Attempts remaining 1', response.data)
-            response = client.post('/confirmation/', data=data, follow_redirects=True)
-            self.assertIn(b'Too many failed attempts', response.data)
-
+                # use up the remaining two attempts
+                response = client.post('/confirmation/', data=data, follow_redirects=True)
+                self.assertIn(b'Incorrect code. Attempts remaining 1', response.data)
+                response = client.post('/confirmation/', data=data, follow_redirects=True)
+                self.assertIn(b'Too many failed attempts', response.data)
 
 
 if __name__ == '__main__':
