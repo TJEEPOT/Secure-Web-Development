@@ -136,4 +136,5 @@ tests/coverage/*
 
 # Database
 db.sqlite
+database.sqlite
 /.editorconfig
