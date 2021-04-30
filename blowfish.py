@@ -20,7 +20,7 @@ History : 09/04/2021 - v1.0 - Create project file.
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.1"
+__version__ = "1.5"
 __email__ = "yea18qyu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
@@ -36,7 +36,6 @@ class BlowyFishy:
 
         if len(key) < 4 or len(key) > 56 or not key:
             raise Exception("Key length must be between 32 - 448 bits long.")
-        print(new_p_box)
         element = 0
         key_length = len(key)
         for i in range(len(constants.p_box)):
@@ -44,7 +43,6 @@ class BlowyFishy:
                         (ord(key[(element + 2) % key_length]) << 8) + ord(key[(element + 3) % key_length])
             new_p_box[i] = constants.p_box[i] ^ input_key
             element += 4
-        print(new_p_box)
 
     def encrypt(self, lhs, rhs):
         """Encrypts a block size of 64 bit plain text using Blowfish
