@@ -18,7 +18,8 @@ __version__ = "1.3"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
-import datetime
+
+from datetime import datetime
 import os
 import pathlib
 import sqlite3
@@ -328,18 +329,23 @@ def get_reset_token(email: str):
         token = query_db(query, (userid,), one=True)['token']
     return token
 
-
+def is_weak_password(password: str):
+    password = validation.validate_password(password)
+    ret = False
+    if password:    # needed incase validation fails
+        with open(data_filename, 'r') as file:
+            for line in file:
+                line = line.strip("\n")
+                if password == line:
+                    ret = True
+                    break
+    return ret
 def update_password_from_email(email: str, password: str):
     email = validation.validate_email(email)
     password = validation.validate_password(password)
     userid = get_user_id_from_email(email)
     ret = False
     if userid is not None and password is not None:
-        with open(data_filename, 'r') as file:
-            for line in file:
-                line = line.strip("\n")
-                if password == line:
-                    return ret
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
         salt = salt['salt']
@@ -352,11 +358,14 @@ def update_password_from_email(email: str, password: str):
 
 
 # if we're out of time, kick them back to the login screen
-def within_time_limit(db_time: datetime.datetime, curr_time=datetime.datetime.now()):
-    db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
-    mins = round((curr_time - db_time).total_seconds() / 60)  # Why does timedelta not have a get minutes func!!!!1
+def within_time_limit(db_time: str, curr_time=datetime.now()):
+    db_time_as_dt = datetime.strptime(db_time, '%Y-%m-%d %H:%M:%S')
+    curr_time = datetime.now()      # seriously you better be later than the db this time or someones getting unimported
+    difference = curr_time - db_time_as_dt
+    total_secs = difference.total_seconds()
+    total_mins = total_secs/60
     limit = 5  # Max time for codes to work in minutes
-    return mins < limit
+    return total_mins < limit
 
 
 def user_twofactor_code_within_time_limit(user_id: str):

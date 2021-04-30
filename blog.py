@@ -19,7 +19,6 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
-import os
 import re
 from functools import wraps
 
@@ -30,14 +29,13 @@ import auth
 import blowfish
 import db
 import emailer
-import string
-import random
 
 app = Flask(__name__)
+host = "127.0.0.1"
+port = "5000"
 
 load_dotenv(override=True)
-app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
-app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
+auth.configure_app(app)
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
@@ -367,14 +365,20 @@ def reset_password():
     email = request.form.get('email', '')
     token_from_form = request.form.get('token', '')
     password = request.form.get('password', '')
+
     if email and token_from_form and password:
         token_from_db = db.get_reset_token(email)
         if token_from_db == token_from_form:
-            password_changed = db.update_password_from_email(email, password)
-            if password_changed:
-                message = "Your password has been changed! Please login again."
+            is_weak = db.is_weak_password(password)
+            if is_weak:
+                message = "That password is known to be weak, please try another."
                 flash(message)
-                return redirect(url_for('login'))
+            else:
+                password_changed = db.update_password_from_email(email, password)
+                if password_changed:
+                    message = "Your password has been changed! Please login again."
+                    flash(message)
+                    return redirect(url_for('login'))
         else:
             message = "Something went wrong with your password reset. Please try again!"
             flash(message)
