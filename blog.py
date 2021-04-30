@@ -95,8 +95,9 @@ def users_posts(uname=None):
             if session['userid'] == cid:
                 context['uname'] = uname
                 context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
-                context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
-        return render_template('user_posts.html', **context)
+                context['twofactor'] = db.query_db(
+                    'SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
+        return render_template('blog/user_posts.html', **context)
     else:
         cid = session['userid']
         new_username = request.form.get('username', '')
@@ -108,9 +109,7 @@ def users_posts(uname=None):
             new_usetwofactor = 0
 
         csrftoken = request.form.get('csrftoken')
-        block_cipher = blowfish.BlowyFishy(app.secret_key)
-        mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-        decrypted = mode_ctr.ctr_decryption(csrftoken)
+        decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
         if decrypted != app.secret_key:
             error_msg = 'CSRF token invalid.'
         else:
@@ -158,11 +157,8 @@ def login():
             url = emailer.send_two_factor(user_id, two_factor['email'])
         else:
             session['validated'] = True
-            key = app.secret_key
-            block_cipher = blowfish.BlowyFishy(key)
             session['nonce'] = blowfish.get_nonce()
-            mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-            cipher = mode_ctr.ctr_encryption(key)
+            cipher = blowfish.decrypt(app.secret_key, session['nonce'], user_id)
             session['CSRFtoken'] = cipher
         return redirect(url_for(url))
 
@@ -238,11 +234,8 @@ def verify_code():
     # success
     session['validated'] = True
     db.del_two_factor(uid)  # remove that code from the db since it's been used
-    key = app.secret_key
-    block_cipher = blowfish.BlowyFishy(key)
     session['nonce'] = blowfish.get_nonce()
-    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-    cipher = mode_ctr.ctr_encryption(key)
+    cipher = blowfish.decrypt(app.secret_key, session['nonce'], uid)
     session['CSRFtoken'] = cipher
     return redirect(url_for('index'))
 
@@ -307,15 +300,13 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
     csrftoken = request.form.get('csrftoken')
-    block_cipher = blowfish.BlowyFishy(app.secret_key)
-    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-    decrypted = mode_ctr.ctr_decryption(csrftoken)
+    decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
     error_msg = ''
-    if decrypted != app.secret_key:
+    if decrypted != str(user_id):
         error_msg = 'CSRF token invalid.'
+        flash(error_msg)
     else:
         db.add_post(content, date, title, user_id)
-    db.add_post(content, date, title, user_id)
     return redirect('/')
 
 
@@ -330,7 +321,6 @@ def reset():
     inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
 
     if inserted:
-        # TODO is there a way to generate a link to a page with hostname and port from flask??
         url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
         emailer.send_reset_link(email, url)
 
