@@ -1,11 +1,17 @@
+import os
 import time
 import unittest
-from datetime import datetime
 
-import db
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
+
+import blowfish
+import db
 from blog import app
 
+load_dotenv(override=True)
+SEK = blowfish.decrypt("dQw4w9WgXcQ", 0, os.environ.get("UG_4_SEK"))
+DBN = blowfish.decrypt(SEK, 0, os.environ.get("UG_4_DBN"))
 
 def delete_user(user_id):
     with app.app_context():
@@ -93,7 +99,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_add_user_email_exists(self):
         with app.app_context():
-            error = db.add_user("name", "a.king@fakeemailservice.abcde", "user", "password5643")
+            error = db.add_user("asdf ghjkl", "a.king@fakeemailservice.abcde", "sdfff", "password5643")
             self.assertEqual("Email exists", error)
 
     def test_update_user(self):
@@ -136,7 +142,7 @@ class MyTestCase(unittest.TestCase):
         with app.app_context():
             test_user_id = "0"  # aking
             test_time = "2012-04-26 20:06:37"  # ('%Y-%m-%d %H:%M:%S') way out of date
-            query = "insert into twofactor (user, timestamp, code, attempts) values (?,?,?,?)"
+            query = "INSERT INTO twofactor (user, timestamp, code, attempts) VALUES (?,?,?,?)"
             db.update_db(query, (test_user_id, test_time, "abcdef", 3))
             self.assertFalse(db.user_twofactor_code_within_time_limit(test_user_id))
 
@@ -152,13 +158,13 @@ class MyTestCase(unittest.TestCase):
     def test_delete_reset_token(self):
         with app.app_context():
             test_time = "2021-04-29 20:06:37"  # ('%Y-%m-%d %H:%M:%S')
-            query = "insert into reset_tokens (user, timestamp, token) values (?,?,?)"
+            query = "INSERT INTO reset_tokens (user, timestamp, token) VALUES (?,?,?)"
             db.update_db(query, (0, test_time, "abcdef"))
             email = "a.king@fakeemailservice.abcde"
             db.delete_reset_token(email)
-            query2 = "select * from reset_tokens where user=?"
+            query2 = "SELECT * FROM reset_tokens WHERE user=?"
             found_result = db.query_db(query2, (0,))
-            self.assertEqual(found_result, [])
+            self.assertEqual([], found_result)
 
 
 if __name__ == '__main__':

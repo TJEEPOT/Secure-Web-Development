@@ -34,13 +34,13 @@ class BlowyFishy:
     def __init__(self, key: str):
         self.key = key
 
-        if len(key) < 4 or len(key) > 56 or not key:
+        if len(self.key) < 4 or len(self.key) > 56 or not self.key:
             raise Exception("Key length must be between 32 - 448 bits long.")
         element = 0
-        key_length = len(key)
+        key_length = len(self.key)
         for i in range(len(constants.p_box)):
-            input_key = (ord(key[element % key_length]) << 24) + (ord(key[(element + 1) % key_length]) << 16) + \
-                        (ord(key[(element + 2) % key_length]) << 8) + ord(key[(element + 3) % key_length])
+            input_key = (ord(self.key[element % key_length]) << 24) + (ord(self.key[(element + 1) % key_length]) << 16)\
+                        + (ord(self.key[(element + 2) % key_length]) << 8) + ord(self.key[(element + 3) % key_length])
             new_p_box[i] = constants.p_box[i] ^ input_key
             element += 4
 
@@ -168,15 +168,7 @@ def encrypt(key, nonce, msg):
     :return: Encrypted message
     """
     # ensure validation for inputs rather than assume
-    if type(key) is not bytes:
-        key = bytes(key, "utf-8")
-    if type(nonce) is not int:
-        nonce = int(nonce)
-    if type(msg) is not str:
-        msg = str(msg)
-
-    block_cipher = BlowyFishy(key)
-    mode_ctr = CTR(block_cipher, nonce)
+    mode_ctr, msg = validate_encryption_input(key, msg, nonce)
     encrypted_message = mode_ctr.ctr_encryption(msg)
     return encrypted_message
 
@@ -190,14 +182,18 @@ def decrypt(key, nonce, msg):
     :return: Decrypted message
     """
     # ensure validation for inputs rather than assume
-    if type(key) is not bytes:
-        key = bytes(key, "utf-8")
+    mode_ctr, msg = validate_encryption_input(key, msg, nonce)
+    decrypted_message = mode_ctr.ctr_decryption(msg)
+    return decrypted_message
+
+
+def validate_encryption_input(key, msg, nonce):
+    if type(key) is not str:
+        key = str(key, "utf-8")
     if type(nonce) is not int:
         nonce = int(nonce)
     if type(msg) is not str:
         msg = str(msg)
-
     block_cipher = BlowyFishy(key)
     mode_ctr = CTR(block_cipher, nonce)
-    decrypted_message = mode_ctr.ctr_decryption(msg)
-    return decrypted_message
+    return mode_ctr, msg

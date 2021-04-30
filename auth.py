@@ -246,12 +246,12 @@ def _gen_s_box():
 
 
 def configure_app(app):
-    sek = bytes(os.environ["UG_4_SEK"], "utf-8")
-    dbn = blowfish.decrypt(sek, 0, os.environ["UG_4_DBN"])
-    app.config["ENV"] = blowfish.decrypt(sek, dbn, os.environ["UG_4_ENV"])
-    app.config["DEBUG"] = blowfish.decrypt(sek, dbn, os.environ["UG_4_DEBUG"])
-    app.config["TESTING"] = blowfish.decrypt(sek, dbn, os.environ["UG_4_TESTING"])
-    app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8")
+    sek = blowfish.decrypt("dQw4w9WgXcQ", 0, os.environ.get("UG_4_SEK"))
+    dbn = blowfish.decrypt(sek, 0, os.environ.get("UG_4_DBN"))
+    app.config["ENV"] = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_ENV"))
+    app.config["DEBUG"] = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_DEBUG"))
+    app.config["TESTING"] = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_TESTING"))
+    app.secret_key = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_SECRET_KEY"))
     app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
 
 

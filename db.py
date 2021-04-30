@@ -22,14 +22,12 @@ __status__ = "Development"  # or "Production"
 
 from datetime import datetime
 import os
-import re  # to validate two factor code now that it has been removed from validation
 import pathlib
 import re  # to validate two factor code now that it has been removed from validation
 import sqlite3
 import time
 
 from dotenv import load_dotenv
-import re  # to validate two factor code now that it has been removed from validation
 from flask import g
 
 import auth
@@ -37,12 +35,13 @@ import blowfish
 import validation
 
 load_dotenv(override=True)
-SEK = bytes(os.environ["UG_4_SEK"], "utf-8")
-DBN = blowfish.decrypt(SEK, 0, os.environ["UG_4_DBN"])
-DATABASE = blowfish.decrypt(SEK, DBN, os.environ["UG_4_DATABASE"])
-PEPPER = blowfish.decrypt(SEK, DBN, os.environ["UG_4_PEP"])
-DBK = bytes(os.environ["UG_4_DB"], "utf-8")
-data_filename = pathlib.Path(__file__).with_name('bad_passwords.txt')
+SEK = blowfish.decrypt("dQw4w9WgXcQ", 0, os.environ.get("UG_4_SEK"))
+DBN = blowfish.decrypt(SEK, 0, os.environ.get("UG_4_DBN"))
+print(DBN)
+DATABASE = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DATABASE"))
+PEPPER = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_PEP"))
+DBK = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DB"))
+DATA_FILENAME = pathlib.Path(__file__).with_name('bad_passwords.txt')
 
 
 def get_db():
@@ -141,7 +140,7 @@ def add_user(name, email, username, password):
     valid_email = validation.validate_email(email)
     valid_username = validation.validate_username(username)
     valid_password = validation.validate_password(password)
-    usetwofactor = 'off'
+    usetwofactor = '0'
 
     if not valid_name:
         return 'Name validation failed.'
@@ -151,7 +150,7 @@ def add_user(name, email, username, password):
         return 'Username validation failed.'
     if not valid_password:
         return 'Password validation failed.'
-    with open(data_filename, "r") as file:
+    with open(DATA_FILENAME, "r") as file:
         for line in file:
             line = line.strip("\n")
             if password == line:
@@ -207,8 +206,10 @@ def update_user(userid, username, email, usetwofactor):
     if not valid_username:
         return 'Username validation failed.'
 
+    encrypted_email = blowfish.encrypt(SEK, DBN, valid_email)
+
     query = "UPDATE users SET username = ?, email = ?, usetwofactor = ? WHERE userid = ?"
-    update_db(query, (valid_username, valid_email, usetwofactor, userid))
+    update_db(query, (valid_username, encrypted_email, usetwofactor, userid))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
@@ -264,7 +265,7 @@ def get_two_factor(uid):
     return result
 
 
-def set_two_factor(userid: str, date_time: str, code: str):
+def set_two_factor(userid: int, date_time: str, code: str):
     # code is encrypted in the DB so encrypt it
     encrypted_code = blowfish.encrypt(DBK, DBN, code)
 
@@ -362,7 +363,8 @@ def insert_and_retrieve_reset_token(email: str, timestamp: str):
 
 def delete_reset_token(email: str):
     valid_email = validation.validate_email(email)
-    userid = get_user_id_from_email(valid_email)
+    userid = get_user_id_from_email(valid_email)  # encrypted within
+
     if userid is not None:
         query = "DELETE FROM reset_tokens WHERE user=?"
         del_from_db(query, (userid,))
@@ -380,15 +382,15 @@ def get_reset_token(email: str):
 
 def is_weak_password(password: str):
     password = validation.validate_password(password)
-    ret = False
+    weak = False
     if password:    # needed incase validation fails
-        with open(data_filename, 'r') as file:
+        with open(DATA_FILENAME, 'r') as file:
             for line in file:
                 line = line.strip("\n")
                 if password == line:
-                    ret = True
+                    weak = True
                     break
-    return ret
+    return weak
 
 
 def update_password_from_email(email: str, password: str):
@@ -398,17 +400,15 @@ def update_password_from_email(email: str, password: str):
 
     ret = False
     if userid is not None and valid_password is not None:
-        with open(data_filename, 'r') as file:
-            for line in file:
-                line = line.strip("\n")
-                if password == line:
-                    return ret
+        if is_weak_password(valid_password):
+            return ret
+
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
         salt = salt['salt']
-        password = auth.ug4_hash(password + salt + PEPPER)
+        valid_password = auth.ug4_hash(valid_password + salt + PEPPER)
         query = "UPDATE users SET password =? WHERE userid =?"
-        update_db(query, (password, userid))
+        update_db(query, (valid_password, userid))
         ret = True
 
     return ret
@@ -417,7 +417,6 @@ def update_password_from_email(email: str, password: str):
 # if we're out of time, kick them back to the login screen
 def within_time_limit(db_time: str, curr_time=datetime.now()):
     db_time_as_dt = datetime.strptime(db_time, '%Y-%m-%d %H:%M:%S')
-    curr_time = datetime.now()      # seriously you better be later than the db this time or someones getting unimported
     difference = curr_time - db_time_as_dt
     total_secs = difference.total_seconds()
     total_mins = total_secs/60
@@ -451,4 +450,4 @@ def get_lockout_time(ip_address):
     lockout_time = query_db(query, (ip_address,), one=True)
     if lockout_time is None or lockout_time['lockouttime'] is None:
         return None
-    return datetime.datetime.strptime(lockout_time['lockouttime'], '%Y-%m-%d %H:%M:%S.%f')
+    return datetime.strptime(lockout_time['lockouttime'], '%Y-%m-%d %H:%M:%S.%f')
