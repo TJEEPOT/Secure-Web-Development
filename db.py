@@ -154,11 +154,10 @@ def add_user(name, email, username, password):
         return 'Password validation failed.'
 
     if is_weak_password(valid_password):
-        return 'Password entered is vulnerable to attacks'
+        return 'Account not created: This password entered is vulnerable to attacks, please use another password.'
 
     # email is encrypted in the DB so encrypt it
     encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
-
 
     # check if the user exists
     query = "SELECT userid FROM users WHERE email=?"
@@ -400,9 +399,6 @@ def update_password_from_email(email: str, password: str):
 
     ret = False
     if userid is not None and valid_password is not None:
-        if is_weak_password(valid_password):
-            return ret
-
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
         salt = salt['salt']

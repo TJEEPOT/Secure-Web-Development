@@ -375,7 +375,7 @@ def reset_password():
         if token_from_db == token_from_form:
             is_weak = db.is_weak_password(password)
             if is_weak:
-                message = "That password is known to be weak, please try another."
+                message = "This password entered is vulnerable to attacks, please use another password."
                 flash(message)
             else:
                 password_changed = db.update_password_from_email(email, password)
