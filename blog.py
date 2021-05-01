@@ -19,7 +19,6 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
-import os
 import re
 from functools import wraps
 
@@ -30,15 +29,13 @@ import auth
 import blowfish
 import db
 import emailer
-import string
-import random
 
 app = Flask(__name__)
 host = "127.0.0.1"
 port = "5000"
+
 load_dotenv(override=True)
-app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
-app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
+auth.configure_app(app)
 
 
 # TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
