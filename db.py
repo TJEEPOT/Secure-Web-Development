@@ -336,7 +336,6 @@ def validate_reset_code(email: str, code: str):
     #   success
     userid = get_user_id_from_email(valid_email)
     if userid is not None and valid_code is not None:
-        # code is encrypted in the DB so encrypt it
         encrypted_code = blowfish.encrypt(DBK, DBN, valid_code)
         query = "SELECT * FROM reset_codes WHERE user=? AND code=?"
         result = query_db(query, (userid, encrypted_code), one=True)

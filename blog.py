@@ -333,11 +333,11 @@ def reset():
 def enter_reset():
     email = request.args.get('email')
     code = request.args.get('code')
-    if not email or not code:
+    if not email:
         email = request.form.get('email', '')
+    if not code:
         code = request.form.get('code', '')
 
-    print(f'email: {email} code: {code}')
     success = db.validate_reset_code(email, code)
     within_time = False
     if email:
@@ -350,7 +350,7 @@ def enter_reset():
         else:
             message = "That code has expired please start a new reset request!"
         db.delete_reset_code(email)
-    if within_time and (email or code):
+    if not (email or code):
         message = "Invalid email or reset code!"
     flash(message)
     return render_template('auth/enter_reset.html')
