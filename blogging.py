@@ -25,7 +25,7 @@ previous_date = None
 def create_dir_if_not_exist():
     if not os.path.isdir("logs/"):
         os.mkdir('logs/')
-        
+
 
 def get_file_location():
     create_dir_if_not_exist()
@@ -69,4 +69,3 @@ def log_this(log_me: str):
 if __name__ == '__main__':
     log_user_activity_unhappy("0", "100.000.000.000", "oops")
     log_user_activity_happy("0", "100.001.000.000", "yay")
-
