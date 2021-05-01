@@ -96,7 +96,6 @@ def users_posts(uname=None):
             if session['userid'] == cid:
                 email = get_email(cid)
                 context['email'] = email
-                print(email)
                 context['uname'] = uname
                 context['twofactor'] = db.query_db(
                     'SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
