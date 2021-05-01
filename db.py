@@ -38,7 +38,6 @@ import validation
 load_dotenv(override=True)
 SEK = blowfish.decrypt("dQw4w9WgXcQ", 0, os.environ.get("UG_4_SEK"))
 DBN = blowfish.decrypt(SEK, 0, os.environ.get("UG_4_DBN"))
-print(DBN)
 DATABASE = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DATABASE"))
 PEPPER = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_PEP"))
 DBK = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DB"))
