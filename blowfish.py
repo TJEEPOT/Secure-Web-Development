@@ -61,22 +61,6 @@ class BlowyFishy:
         lhs, rhs = rhs, lhs
         return lhs, rhs
 
-    def decrypt(self, lhs, rhs):
-        """Decrypts 64 bit cipher text using Blowfish
-        :param int lhs: 32 Bits of left hand side
-        :param int rhs: 32 Bits of right hand side
-
-        :returns: int tuple of left and right hand side
-        """
-        for i in range(17, 1, -1):
-            lhs ^= new_p_box[i]
-            rhs ^= self.f_func(lhs)
-            lhs, rhs = rhs, lhs
-        lhs ^= new_p_box[1]
-        rhs ^= new_p_box[0]
-        lhs, rhs = rhs, lhs
-        return lhs, rhs
-
     def f_func(self, xor_data):
         """F-function splits 32 bit input into 4 parts
 
