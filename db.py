@@ -452,3 +452,10 @@ def get_lockout_time(ip_address):
     if lockout_time is None or lockout_time['lockouttime'] is None:
         return None
     return datetime.strptime(lockout_time['lockouttime'], '%Y-%m-%d %H:%M:%S.%f')
+
+
+def get_email(cid):
+    query = 'SELECT email FROM users WHERE userid=?'
+    encrypted_email = query_db(query, (cid,), one=True)['email']
+    email = blowfish.decrypt(DBK, DBN, encrypted_email)
+    return email

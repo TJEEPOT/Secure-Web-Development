@@ -19,6 +19,7 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
+import os
 import re
 from functools import wraps
 
@@ -29,6 +30,7 @@ import auth
 import blowfish
 import db
 import emailer
+from db import get_email
 
 app = Flask(__name__)
 host = "127.0.0.1"
@@ -93,8 +95,9 @@ def users_posts(uname=None):
         # CS: if the currently logged in user is viewing their own posts
         if session:
             if session['userid'] == cid:
+                email = get_email(cid)
+                context['email'] = email
                 context['uname'] = uname
-                context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
                 context['twofactor'] = db.query_db(
                     'SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
         return render_template('blog/user_posts.html', **context)
