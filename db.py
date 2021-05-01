@@ -207,7 +207,7 @@ def update_user(userid, username, email, usetwofactor):
     if not valid_username:
         return 'Username validation failed.'
 
-    encrypted_email = blowfish.encrypt(SEK, DBN, valid_email)
+    encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
 
     query = "UPDATE users SET username = ?, email = ?, usetwofactor = ? WHERE userid = ?"
     update_db(query, (valid_username, encrypted_email, usetwofactor, userid))

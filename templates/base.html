@@ -19,7 +19,7 @@
         {% if loggedin %}
             <div id="userbox">
                 {% autoescape false %}
-                    <strong>User:</strong> {{username}}<br />
+                <strong>User:</strong> <a href=/{{username}}/>{{username}}</a><br />
                 {% endautoescape %}
                 <a href="/post/">Post</a>
                 <a href="/logout/">Logout</a>

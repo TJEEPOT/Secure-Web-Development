@@ -2,6 +2,18 @@
 {% block title %}User Posts{% endblock %}
 {% block content %}
     {{ msg }}
+    <div class="message">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    {% autoescape false %}
+                        {{ message|safe }}
+                    {% endautoescape %}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
     <ul class="content">
         <!--CS: too lazy to put this in the stylesheet properly-->
     {% if session and session.username == uname %}

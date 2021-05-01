@@ -30,6 +30,7 @@ import auth
 import blowfish
 import db
 import emailer
+import validation
 from db import get_email
 
 app = Flask(__name__)
@@ -97,31 +98,36 @@ def users_posts(uname=None):
             if session['userid'] == cid:
                 email = get_email(cid)
                 context['email'] = email
+                print(email)
                 context['uname'] = uname
                 context['twofactor'] = db.query_db(
                     'SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
         return render_template('blog/user_posts.html', **context)
-    else:
-        cid = session['userid']
-        new_username = request.form.get('username', '')
-        new_email = request.form.get('email', '')
-        new_usetwofactor = request.form.get('twofactor', 0)
-        if new_usetwofactor == 'on':
-            new_usetwofactor = 1
-        else:
-            new_usetwofactor = 0
 
-        csrftoken = request.form.get('csrftoken')
-        decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
-        if decrypted != app.secret_key:
-            error_msg = 'CSRF token invalid.'
-        else:
-            error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
-        if not error_msg:
-            session['username'] = new_username
-            return redirect(url_for('users_posts', uname=new_username))
-        else:
-            return redirect(url_for('users_posts', uname=session['username'], msg=error_msg))
+    error_msg = None
+    cid = session['userid']
+    new_username = request.form.get('username', '')
+    new_email = request.form.get('email', '')
+
+    new_usetwofactor = request.form.get('twofactor', 0)
+    if new_usetwofactor == 'on':
+        new_usetwofactor = 1
+    else:
+        new_usetwofactor = 0
+
+    csrftoken = request.form.get('csrftoken')
+    decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
+    if decrypted != str(cid):
+        error_msg = 'CSRF token invalid.'
+    else:
+        error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
+
+    if not error_msg:
+        session['username'] = new_username
+        return redirect(url_for('users_posts', uname=new_username))
+
+    flash(error_msg)
+    return redirect(url_for('users_posts', uname=session['username']))
 
 
 @app.route('/login/', methods=['GET', 'POST'])

@@ -105,3 +105,8 @@ def send_account_confirmation(user_email: str, name: str):
         print(user_email, ": Account created, please login.")
     else:
         e.send_email(user_email, "New account created", message)
+
+
+def encrypt_email(email):
+    email = blowfish.encrypt(SEK, DBN, email)
+    return email
