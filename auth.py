@@ -253,6 +253,7 @@ def configure_app(app):
     app.config["TESTING"] = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_TESTING"))
     app.secret_key = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_SECRET_KEY"))
     app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
+    app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
 
 
 def generate_code():

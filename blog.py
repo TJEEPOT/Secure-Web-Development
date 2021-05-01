@@ -19,7 +19,6 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 import datetime
-import os
 import re
 from functools import wraps
 
@@ -30,7 +29,6 @@ import auth
 import blowfish
 import db
 import emailer
-import validation
 from db import get_email
 
 app = Flask(__name__)
