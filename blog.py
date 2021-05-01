@@ -101,7 +101,6 @@ def users_posts(uname=None):
                     'SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
         return render_template('blog/user_posts.html', **context)
 
-    error_msg = None
     cid = session['userid']
     new_username = request.form.get('username', '')
     new_email = request.form.get('email', '')
@@ -112,6 +111,7 @@ def users_posts(uname=None):
     else:
         new_usetwofactor = 0
 
+    error_msg = None
     csrftoken = request.form.get('csrftoken')
     decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
     if decrypted != str(cid):
@@ -212,13 +212,8 @@ def verify_code():
 
     # find the two-factor code in the database for this user
     two_factor = db.get_two_factor(uid)
-    # if we're out of time, kick them back to the login screen
-    def within_time_limit(db_time: datetime.datetime, curr_time: datetime.datetime):
-        db_time = datetime.datetime.strptime(db_time, "%Y-%m-%d %H:%M:%S")
-        mins = round((curr_time - db_time).total_seconds() / 60)  # Why does timedelta not have a get minutes func!!!!1
-        limit = 5  # Max time for codes to work in minutes
-        return mins < limit
 
+    # if we're out of time, kick them back to the login screen
     original_time = two_factor['timestamp']
     if not db.within_time_limit(original_time):
         return render_template('auth/login_fail.html', error='Code has expired. Please login again')
