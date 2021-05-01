@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 import blowfish
 import db
+from datetime import datetime, timedelta
 from blog import app
 
 load_dotenv(override=True)
@@ -165,6 +166,34 @@ class MyTestCase(unittest.TestCase):
             query2 = "SELECT * FROM reset_tokens WHERE user=?"
             found_result = db.query_db(query2, (0,))
             self.assertEqual([], found_result)
+
+    def test_two_factor_within_time(self):
+        with app.app_context():
+            test_user_id = "0"  # aking
+            test_time = "2012-04-26 20:06:37"  # ('%Y-%m-%d %H:%M:%S') way out of date
+            query = "insert into twofactor (user, timestamp, code, attempts) values (?,?,?,?)"
+            db.update_db(query, (test_user_id, test_time, "abcdef", 3))
+            self.assertFalse(db.user_twofactor_code_within_time_limit(test_user_id))
+
+            db.del_two_factor(test_user_id)
+            within_time = datetime.now() - timedelta(minutes=1)
+            dt_format = '%Y-%m-%d %H:%M:%S'
+            time_string = within_time.strftime(dt_format)
+            and_back_to_dt = datetime.strptime(time_string, dt_format)
+            db.update_db(query, (test_user_id, and_back_to_dt, "abcdef", 3))
+            self.assertTrue(db.user_twofactor_code_within_time_limit(test_user_id))
+            db.del_two_factor(test_user_id)
+
+    def test_delete_reset_token(self):
+        with app.app_context():
+            test_time = "2021-04-29 20:06:37"  # ('%Y-%m-%d %H:%M:%S')
+            query = "insert into reset_tokens (user, timestamp, token) values (?,?,?)"
+            db.update_db(query, (0, test_time, "abcdef"))
+            email = "a.king@fakeemailservice.abcde"
+            db.delete_reset_token(email)
+            query2 = "select * from reset_tokens where user=?"
+            found_result = db.query_db(query2, (0,))
+            self.assertEqual(found_result, [])
 
 
 if __name__ == '__main__':

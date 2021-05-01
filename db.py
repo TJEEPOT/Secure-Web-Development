@@ -24,6 +24,7 @@ from datetime import datetime
 import os
 import pathlib
 import re  # to validate two factor code now that it has been removed from validation
+
 import sqlite3
 import time
 
@@ -42,6 +43,7 @@ DATABASE = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DATABASE"))
 PEPPER = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_PEP"))
 DBK = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DB"))
 DATA_FILENAME = pathlib.Path(__file__).with_name('bad_passwords.txt')
+
 
 
 def get_db():
@@ -150,14 +152,13 @@ def add_user(name, email, username, password):
         return 'Username validation failed.'
     if not valid_password:
         return 'Password validation failed.'
-    with open(DATA_FILENAME, "r") as file:
-        for line in file:
-            line = line.strip("\n")
-            if password == line:
-                return 'Password entered is vulnerable to attacks'
+
+    if is_weak_password(valid_password):
+        return 'Password entered is vulnerable to attacks'
 
     # email is encrypted in the DB so encrypt it
     encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
+
 
     # check if the user exists
     query = "SELECT userid FROM users WHERE email=?"
@@ -383,15 +384,15 @@ def is_weak_password(password: str):
     password = validation.validate_password(password)
     weak = False
     if password:    # needed incase validation fails
-        with open(DATA_FILENAME, 'r') as file:
+        with open(data_filename, 'r') as file:
             for line in file:
                 line = line.strip("\n")
                 if password == line:
                     weak = True
                     break
     return weak
-
-
+  
+  
 def update_password_from_email(email: str, password: str):
     valid_email = validation.validate_email(email)
     valid_password = validation.validate_password(password)
@@ -416,6 +417,7 @@ def update_password_from_email(email: str, password: str):
 # if we're out of time, kick them back to the login screen
 def within_time_limit(db_time: str, curr_time=datetime.now()):
     db_time_as_dt = datetime.strptime(db_time, '%Y-%m-%d %H:%M:%S')
+
     difference = curr_time - db_time_as_dt
     total_secs = difference.total_seconds()
     total_mins = total_secs/60

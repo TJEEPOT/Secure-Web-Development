@@ -15,7 +15,6 @@ History : 09/04/2021 - v1.0 - Create project file.
           27/04/2021 - v1.5 - Removed generation of P and S boxes using encryption method, only sub-keys from P-boxes
                               are generated.
           27/04/2021 - v1.6 - Added helper / wrapper functions for encrypt and decrypt
-"""
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
@@ -41,6 +40,7 @@ class BlowyFishy:
         for i in range(len(constants.p_box)):
             input_key = (ord(self.key[element % key_length]) << 24) + (ord(self.key[(element + 1) % key_length]) << 16)\
                         + (ord(self.key[(element + 2) % key_length]) << 8) + ord(self.key[(element + 3) % key_length])
+
             new_p_box[i] = constants.p_box[i] ^ input_key
             element += 4
 
