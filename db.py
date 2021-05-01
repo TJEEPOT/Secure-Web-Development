@@ -20,13 +20,12 @@ __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
 
-from datetime import datetime
 import os
 import pathlib
 import re  # to validate two factor code now that it has been removed from validation
-
 import sqlite3
 import time
+from datetime import datetime
 
 from dotenv import load_dotenv
 from flask import g
