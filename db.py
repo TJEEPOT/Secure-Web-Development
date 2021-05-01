@@ -384,7 +384,7 @@ def is_weak_password(password: str):
     password = validation.validate_password(password)
     weak = False
     if password:    # needed incase validation fails
-        with open(data_filename, 'r') as file:
+        with open(DATA_FILENAME, 'r') as file:
             for line in file:
                 line = line.strip("\n")
                 if password == line:
