@@ -20,8 +20,8 @@ __status__ = "Development"  # or "Production"
 import datetime
 import os
 import smtplib
-
 from email.message import EmailMessage
+
 from dotenv import load_dotenv
 
 import blowfish

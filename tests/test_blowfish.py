@@ -1,4 +1,5 @@
 import os
+import time
 import unittest
 
 from dotenv import load_dotenv
@@ -29,7 +30,6 @@ class MyTestCase(unittest.TestCase):
         mode_ctr = b.CTR(block_cipher, nonce)
 
         encrypted_message = mode_ctr.ctr_encryption(message)
-
         self.assertNotEqual(encrypted_message, message)
 
     def test_separate_objects(self):

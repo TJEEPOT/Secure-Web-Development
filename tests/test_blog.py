@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
 import time
-from unittest.mock import patch
 import unittest
+from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import db
 from blog import app
@@ -124,12 +124,34 @@ class MyTestCase(unittest.TestCase):
         self.assertIn(b'<h2>Item', response.data)
 
     def test_users_posts(self):
-        response = app.test_client(self).get('/aking/')
-        self.assertIn(b'<h2>Item 0</h2>', response.data)  # check a post exists
+        with app.test_client() as client:
+            with patch("blog.session", dict()) as session:
+                # test if an unknown user returns the correct error message
+                response = client.get('/notaking/')
+                self.assertEqual(b'User page not found.', response.data)
 
-        # test if an unknown user returns the correct error message
-        response = app.test_client(self).get('/notaking/')
-        self.assertEqual(b'User page not found.', response.data)
+                # check a post exists
+                response = client.get('/bquayle/')
+                self.assertIn(b'<h2>Item 0</h2>', response.data)
+
+                # log in
+                data = {'email': 'b.quayle@fakeemailservice.abcde',
+                        'password': 'apassword_1'}
+                client.post('/login/', data=data, follow_redirects=True)
+
+                # post the login form changing the email
+                data = {'email': 'b.quayle@fakeemailservice.abcde',
+                        'username': 'newusername1',
+                        'csrftoken': session.get('CSRFtoken')}
+                response = client.post('/bquayle/', data=data, follow_redirects=True)
+                self.assertIn(b'newusername1', response.data)
+
+                # change the username back
+                data = {'email': 'b.quayle@fakeemailservice.abcde',
+                        'username': 'bquayle',
+                        'csrftoken': session.get('CSRFtoken')}
+                response = client.post('/bquayle/', data=data, follow_redirects=True)
+                self.assertNotIn(b'newusername1', response.data)
 
     def test_login_and_logout(self):
         with app.test_client() as client:
@@ -145,7 +167,7 @@ class MyTestCase(unittest.TestCase):
             response = client.post('/login/', data=data, follow_redirects=True)
             time_diff = time.time() - start_time
 
-            self.assertIn(b'<strong>User:</strong> bquayle<br />', response.data)
+            self.assertIn(b'<strong>User:</strong> <a href=/bquayle/>bquayle</a>', response.data)
             self.assertLess(0.95, time_diff)
 
             # test that the account logs out
@@ -223,7 +245,7 @@ class MyTestCase(unittest.TestCase):
     def test_new_post(self):
         with app.test_client() as client:
             with patch("blog.session", dict()) as session:
-            # without an active session, we should be redirected to the login page
+                # without an active session, we should be redirected to the login page
                 response = client.get('/post/', follow_redirects=True)
                 self.assertIn(b'<input name="email" id="email" type="email" maxlength="64" />', response.data)
 
