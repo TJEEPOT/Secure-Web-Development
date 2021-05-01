@@ -3,7 +3,6 @@ import time
 import unittest
 
 from dotenv import load_dotenv
-from datetime import datetime, timedelta
 
 import blowfish
 import db
@@ -13,6 +12,7 @@ from blog import app
 load_dotenv(override=True)
 SEK = blowfish.decrypt("dQw4w9WgXcQ", 0, os.environ.get("UG_4_SEK"))
 DBN = blowfish.decrypt(SEK, 0, os.environ.get("UG_4_DBN"))
+
 
 def delete_user(user_id):
     with app.app_context():
