@@ -14,13 +14,12 @@ History : 09/04/2021 - v1.0 - Create project file.
           18/04/2021 - v1.4 - Created unit tests
           27/04/2021 - v1.5 - Removed generation of P and S boxes using encryption method, only sub-keys from P-boxes
                               are generated.
-
-"""
+          27/04/2021 - v1.6 - Added helper / wrapper functions for encrypt and decrypt
 
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.5"
+__version__ = "1.6"
 __email__ = "yea18qyu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
@@ -31,16 +30,17 @@ new_p_box = [None] * 18
 
 
 class BlowyFishy:
-    def __init__(self, key):
+    def __init__(self, key: str):
         self.key = key
 
-        if len(key) < 4 or len(key) > 56 or not key:
+        if len(self.key) < 4 or len(self.key) > 56 or not self.key:
             raise Exception("Key length must be between 32 - 448 bits long.")
         element = 0
-        key_length = len(key)
+        key_length = len(self.key)
         for i in range(len(constants.p_box)):
-            input_key = (ord(key[element % key_length]) << 24) + (ord(key[(element + 1) % key_length]) << 16) + \
-                        (ord(key[(element + 2) % key_length]) << 8) + ord(key[(element + 3) % key_length])
+            input_key = (ord(self.key[element % key_length]) << 24) + (ord(self.key[(element + 1) % key_length]) << 16)\
+                        + (ord(self.key[(element + 2) % key_length]) << 8) + ord(self.key[(element + 3) % key_length])
+
             new_p_box[i] = constants.p_box[i] ^ input_key
             element += 4
 
@@ -95,7 +95,7 @@ class BlowyFishy:
 
 
 class CTR(BlowyFishy):
-    def __init__(self, cipher, nonce):
+    def __init__(self, cipher, nonce: int):
         self.cipher = cipher
         self.nonce = nonce
 
@@ -115,7 +115,6 @@ class CTR(BlowyFishy):
 
         :return: New string that is enciphered
         """
-
         # List of the message split into blocks
         split_message_list = []
         for text_block in range(0, len(message), 8):
@@ -142,7 +141,7 @@ class CTR(BlowyFishy):
             counter += 1
         return full_ciphertext
 
-    def ctr_decryption(self, cipher_message):
+    def ctr_decryption(self, cipher_message: str):
         """Decrypts message through using counter mode by calling ctr_encryption because of XOR
         :param str cipher_message: Bunch of gibberish that will be decrypted
 
@@ -158,3 +157,43 @@ def get_nonce():
     :returns: Integer nonce
     """
     return uuid.uuid4().int & (1 << 32) - 1
+
+
+def encrypt(key, nonce, msg):
+    """ Helper function for encryption
+
+    :param key: Encryption key
+    :param nonce: Nonce to use, generated from get_nonce()
+    :param msg: Message to be encrypted
+    :return: Encrypted message
+    """
+    # ensure validation for inputs rather than assume
+    mode_ctr, msg = validate_encryption_input(key, msg, nonce)
+    encrypted_message = mode_ctr.ctr_encryption(msg)
+    return encrypted_message
+
+
+def decrypt(key, nonce, msg):
+    """ Helper function for decryption
+
+    :param key: Decryption key
+    :param nonce: Nonce to use, generated from get_nonce()
+    :param msg: Message to be decrypted
+    :return: Decrypted message
+    """
+    # ensure validation for inputs rather than assume
+    mode_ctr, msg = validate_encryption_input(key, msg, nonce)
+    decrypted_message = mode_ctr.ctr_decryption(msg)
+    return decrypted_message
+
+
+def validate_encryption_input(key, msg, nonce):
+    if type(key) is not str:
+        key = str(key, "utf-8")
+    if type(nonce) is not int:
+        nonce = int(nonce)
+    if type(msg) is not str:
+        msg = str(msg)
+    block_cipher = BlowyFishy(key)
+    mode_ctr = CTR(block_cipher, nonce)
+    return mode_ctr, msg

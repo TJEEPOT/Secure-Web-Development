@@ -16,7 +16,7 @@ History : 09/04/2021 - v1.0 - Create project file
 __author__ = "Martin Siddons, Chris Sutton, Sam Humphreys, Steven Diep"
 __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
-__version__ = "1.1"
+__version__ = "1.2"
 __email__ = "yea18qyu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 

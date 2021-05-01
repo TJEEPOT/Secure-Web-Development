@@ -3,14 +3,20 @@ import os
 import random
 import re
 import sqlite3
+
 from dotenv import load_dotenv
 
 import auth
+import blowfish
 
-# load environment variables from file TODO: Adjust these before going to prod.
 load_dotenv(override=True)
-DATABASE = os.environ.get("UG_4_DATABASE")
-PEPPER = os.environ.get("UG_4_PEP")
+SEK = blowfish.decrypt("dQw4w9WgXcQ", 0, os.environ.get("UG_4_SEK"))
+DBN = blowfish.decrypt(SEK, 0, os.environ.get("UG_4_DBN"))
+DATABASE = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DATABASE"))
+PEPPER = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_PEP"))
+DBK = blowfish.decrypt(SEK, DBN, os.environ.get("UG_4_DB"))
+PW = blowfish.decrypt(SEK, DBN, os.environ.get('UG_4_PW'))
+
 
 # Simple user blog site
 
@@ -66,9 +72,31 @@ Amy Nonymous
 Elliot Alderson  
 Consuelo Crown'''))
 
+PASSWORDS = ['marine', 'stroke', 'launch', 'future', 'canvas', 'tablet', 'cheque', 'cinema', 'result', 'prince',
+             'escape', 'summit', 'pardon', 'couple', 'record', 'survey', 'policy', 'bridge', 'reward', 'differ',
+             'virtue', 'prison', 'chance', 'deadly', 'sermon', 'rescue', 'series', 'wealth', 'acquit', 'annual',
+             'define', 'accept', 'deport', 'growth', 'gallon', 'throat', 'occupy', 'castle', 'friend', 'needle',
+             'defeat', 'studio', 'betray', 'switch', 'writer', 'sticky', 'oppose', 'efflux', 'offset', 'mature',
+             'appear', 'patent', 'secure', 'silver', 'snatch', 'unfair', 'freeze', 'offend', 'powder', 'pierce',
+             'refund', 'desert', 'virgin', 'output', 'bottle', 'tactic', 'rotate', 'defend', 'pillow', 'speech',
+             'bitter', 'deputy', 'revoke', 'moment', 'effect', 'cellar', 'stress', 'drawer', 'embryo', 'favour',
+             'heroin', 'scrape', 'bishop', 'depart', 'desire', 'slogan', 'exotic', 'murder', 'import', 'tiptoe',
+             'suffer', 'instal', 'waiter', 'threat', 'source', 'filter', 'seller', 'object', 'pigeon', 'proper']
+
+
+def create_random_password():
+    random.seed()
+    words = 4  # length of password in words
+    password = ""
+    while words > 0:
+        password += PASSWORDS[random.randint(0, 99)]
+        words -= 1
+
+    return password
+
 
 def create():
-    print("> Building Empty Database... ", end="")
+    print('> Building Empty Database... ', end='')
     db = sqlite3.connect(DATABASE)
     c = db.cursor()
 
@@ -89,27 +117,27 @@ def create():
 
     # Reset codes
     c.execute('''CREATE TABLE reset_codes (user integer UNIQUE REFERENCES  users(userid), timestamp TEXT, code TEXT)''')
+
     # Reset tokens
     c.execute('''CREATE TABLE reset_tokens (user integer UNIQUE REFERENCES users(userid),timestamp TEXT, token TEXT)''')
+
     db.commit()
-    print("Done.")
+    print('Done.')
 
     user_id = 0
-    password = os.environ.get("UG_4_PW")
-    rand_password = 'dfhfsdghjsfgskjs'  # TODO: might want to randomise the word used for the password?
-    print("> Creating Users and Posts", end="")
+    print('> Creating Users and Posts', end='')
     for user in USERS:
-        if user == "Aleida King":
-            create_content(db, user_id, user, password, 1)  # Expected password
-        elif user == "Billye Quayle":
-            create_content(db, user_id, user, password, 0)  # Same here for the non-authenticated test account
+        if user == 'Aleida King':
+            create_content(db, user_id, user, PW, 1)  # authenticated test account
+        elif user == 'Billye Quayle':
+            create_content(db, user_id, user, PW, 0)  # Same here for the non-authenticated test account
         else:
-            create_content(db, user_id, user, rand_password)
+            create_content(db, user_id, user, create_random_password())
         user_id += 1
-        print(".", end="")
-    print(" Done.")
+        print('.', end='')
+    print(' Done.')
     db.commit()
-    print("\n> Database Created.")
+    print('\n> Database Created.')
 
 
 def create_content(db, user_id, name, password, twofac=0):
@@ -120,8 +148,12 @@ def create_content(db, user_id, name, password, twofac=0):
     username = '%s%s' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
     email = '%s.%s@fakeemailservice.abcde' % (name.lower()[0], name.lower()[name.index(' ') + 1:])
 
-    c.execute('INSERT INTO users (userid, username, name, password, email,usetwofactor, salt) VALUES (?,?,?,?,?,?,?)',
-              (user_id, username, name, pw_hash, email,twofac, salt))
+    # name and email are encrypted in the DB so encrypt them
+    encrypted_name = blowfish.encrypt(DBK, DBN, name)
+    encrypted_email = blowfish.encrypt(DBK, DBN, email)
+
+    c.execute('INSERT INTO users (userid, username, name, password, email, usetwofactor, salt) VALUES (?,?,?,?,?,?,?)',
+              (user_id, username, encrypted_name, pw_hash, encrypted_email, twofac, salt))
     date = datetime.datetime.now() - datetime.timedelta(28)
 
     for i in range(random.randrange(4, 8)):
@@ -130,9 +162,8 @@ def create_content(db, user_id, name, password, twofac=0):
         date = date + datetime.timedelta(random.randrange(1, 3), minutes=random.randrange(1, 120),
                                          hours=random.randrange(0, 6))
 
-        c.execute('INSERT INTO posts (creator,date,title,content) VALUES (?,?,?,?)', (
-            user_id, date.timestamp(), title, content
-        ))
+        c.execute('INSERT INTO posts (creator,date,title,content) VALUES (?,?,?,?)',
+                  (user_id, date.timestamp(), title, content))
 
 
 def delete_db():

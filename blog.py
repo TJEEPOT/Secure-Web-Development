@@ -38,7 +38,6 @@ load_dotenv(override=True)
 auth.configure_app(app)
 
 
-# TODO: Rewrite for this comes under session token stuff (issue 28/31) -MS
 def std_context(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -96,8 +95,9 @@ def users_posts(uname=None):
             if session['userid'] == cid:
                 context['uname'] = uname
                 context['email'] = db.query_db('SELECT email FROM users WHERE userid=?', (cid,), one=True)['email']
-                context['twofactor'] = db.query_db('SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
-        return render_template('user_posts.html', **context)
+                context['twofactor'] = db.query_db(
+                    'SELECT usetwofactor FROM users WHERE userid =?', (cid,), one=True)['usetwofactor']
+        return render_template('blog/user_posts.html', **context)
     else:
         cid = session['userid']
         new_username = request.form.get('username', '')
@@ -109,9 +109,7 @@ def users_posts(uname=None):
             new_usetwofactor = 0
 
         csrftoken = request.form.get('csrftoken')
-        block_cipher = blowfish.BlowyFishy(app.secret_key)
-        mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-        decrypted = mode_ctr.ctr_decryption(csrftoken)
+        decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
         if decrypted != app.secret_key:
             error_msg = 'CSRF token invalid.'
         else:
@@ -132,31 +130,40 @@ def login():
 
     # CS: Capture IP address
     ip_address = request.remote_addr
-    # CS: Insert it if it doesn't exist
-    db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
+
+    # check if they are locked out
+    lockout = db.get_lockout_time(ip_address)
+    if lockout is not None:
+        current_time = datetime.datetime.now()
+        delta = datetime.timedelta(minutes=15)
+
+        if (current_time - delta) <= lockout:
+            return redirect(url_for('login_fail', error='You are still locked out.'))
 
     email = request.form.get('email', '')
     password = request.form.get('password', '')
     user_id, username = db.get_login(email, password)
 
-    if user_id is not None or username is not None:
+    if user_id is not None and username is not None:
         # valid session
+        db.del_from_db("DELETE FROM loginattempts WHERE ip=?", (ip_address, ))  # no need to continue tracking this
+
         session['userid'] = user_id
         session['username'] = username
 
-        two_factor = db.query_db('SELECT usetwofactor, email FROM users WHERE userid =?', (user_id,), one=True)
+        two_factor = db.find_two_factor(user_id)
         url = 'index'
         if two_factor['usetwofactor'] == 1:
             url = emailer.send_two_factor(user_id, two_factor['email'])
         else:
             session['validated'] = True
-            key = app.secret_key
-            block_cipher = blowfish.BlowyFishy(key)
             session['nonce'] = blowfish.get_nonce()
-            mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-            cipher = mode_ctr.ctr_encryption(key)
+            cipher = blowfish.decrypt(app.secret_key, session['nonce'], user_id)
             session['CSRFtoken'] = cipher
         return redirect(url_for(url))
+
+    # CS: Insert IP into db if it doesn't exist
+    db.insert_db('INSERT INTO loginattempts (ip) VALUES (?) ON CONFLICT (ip) DO NOTHING', (ip_address,))
 
     # CS: Update loginattempts for this IP
     login_attempts = db.query_db('SELECT attempts FROM loginattempts WHERE ip =?', (ip_address,), one=True)['attempts']
@@ -168,10 +175,7 @@ def login():
         return redirect(url_for('login_fail', error=f'Incorrect Login Details, {remaining_logins} attempts remaining.'))
 
     # CS: Check lockout time for this IP
-    query = 'SELECT lockouttime FROM loginattempts WHERE ip =?'
-    lockout_time = db.query_db(query, (ip_address,), one=True)['lockouttime']
-    if lockout_time is not None:
-        lockout_time = datetime.datetime.strptime(lockout_time, '%Y-%m-%d %H:%M:%S.%f')
+    lockout_time = db.get_lockout_time(ip_address)
     current_time = datetime.datetime.now()
     delta = datetime.timedelta(minutes=15)
 
@@ -230,11 +234,8 @@ def verify_code():
     # success
     session['validated'] = True
     db.del_two_factor(uid)  # remove that code from the db since it's been used
-    key = app.secret_key
-    block_cipher = blowfish.BlowyFishy(key)
     session['nonce'] = blowfish.get_nonce()
-    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-    cipher = mode_ctr.ctr_encryption(key)
+    cipher = blowfish.decrypt(app.secret_key, session['nonce'], uid)
     session['CSRFtoken'] = cipher
     return redirect(url_for('index'))
 
@@ -299,15 +300,13 @@ def new_post():
     title = request.form.get('title')
     content = request.form.get('content')
     csrftoken = request.form.get('csrftoken')
-    block_cipher = blowfish.BlowyFishy(app.secret_key)
-    mode_ctr = blowfish.CTR(block_cipher, session['nonce'])
-    decrypted = mode_ctr.ctr_decryption(csrftoken)
+    decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
     error_msg = ''
-    if decrypted != app.secret_key:
+    if decrypted != str(user_id):
         error_msg = 'CSRF token invalid.'
+        flash(error_msg)
     else:
         db.add_post(content, date, title, user_id)
-    db.add_post(content, date, title, user_id)
     return redirect('/')
 
 
@@ -322,7 +321,6 @@ def reset():
     inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
 
     if inserted:
-        # TODO is there a way to generate a link to a page with hostname and port from flask??
         url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
         emailer.send_reset_link(email, url)
 
@@ -335,11 +333,11 @@ def reset():
 def enter_reset():
     email = request.args.get('email')
     code = request.args.get('code')
-    if not email or not code:
+    if not email:
         email = request.form.get('email', '')
+    if not code:
         code = request.form.get('code', '')
 
-    print(f'email: {email} code: {code}')
     success = db.validate_reset_code(email, code)
     within_time = False
     if email:
@@ -352,7 +350,7 @@ def enter_reset():
         else:
             message = "That code has expired please start a new reset request!"
         db.delete_reset_code(email)
-    if within_time and (email or code):
+    if not (email or code):
         message = "Invalid email or reset code!"
     flash(message)
     return render_template('auth/enter_reset.html')
