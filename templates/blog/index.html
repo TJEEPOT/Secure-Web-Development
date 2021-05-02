@@ -2,16 +2,25 @@
 {% block title %}Index{% endblock %}
 {% block content %}
     {{ msg }}
+    <div class="message">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    {{ message|safe }}
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
     <ul class="content">
         {% for post in posts %}
         <li>
-            {% autoescape false %}
-                <h2>{{post.title|safe}}</h2>
-                <p class="subtext">By <a href="/{{post.username}}/">{{post.username|safe}}</a> - {{post.date}}</p>
-                <p>
-                {{post.content|safe}}
-                </p>
-            {% endautoescape %}
+            <h2>{{post.title|safe}}</h2>
+            <p class="subtext">
+                By <a href="/{{post.username|safe}}/">{{post.username|safe}}</a> -{{post.date|safe}}
+            </p>
+            <p>
+            {{post.content|safe}}
+            </p>
         </li>
         {% endfor %}
     </ul>

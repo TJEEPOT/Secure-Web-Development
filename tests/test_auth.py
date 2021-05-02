@@ -1,8 +1,6 @@
 import datetime
 import unittest
 
-from flask import Flask
-
 import auth
 import blog
 

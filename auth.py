@@ -17,14 +17,15 @@ __version__ = "1.2"
 __email__ = "gny17hvu@uea.ac.uk"
 __status__ = "Development"  # or "Production"
 
+import binascii
 import datetime
+import os
 import random
 import string
-import time
-import binascii
 
-import os
 from dotenv import load_dotenv
+
+import blowfish
 
 load_dotenv(override=True)  # load the env vars from file into OS
 
@@ -245,19 +246,14 @@ def _gen_s_box():
 
 
 def configure_app(app):
-    app.config["ENV"] = os.environ["UG_4_ENV"]
-    app.config["DEBUG"] = os.environ["UG_4_DEBUG"]
-    app.config["TESTING"] = os.environ["UG_4_TESTING"]
-    app.secret_key = bytes(os.environ["UG_4_SECRET_KEY"], "utf-8").decode('unicode_escape')
+    sek = blowfish.decrypt("dQw4w9WgXcQ", 0, os.environ.get("UG_4_SEK"))
+    dbn = blowfish.decrypt(sek, 0, os.environ.get("UG_4_DBN"))
+    app.config["ENV"] = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_ENV"))
+    app.config["DEBUG"] = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_DEBUG"))
+    app.config["TESTING"] = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_TESTING"))
+    app.secret_key = blowfish.decrypt(sek, dbn, os.environ.get("UG_4_SECRET_KEY"))
     app.permanent_session_lifetime = datetime.timedelta(days=1)  # CS: Session lasts a day
-    # for item in app.config.items():
-    #     print(item)
-
-
-def load(env_var, enc=False):
-    """ Ensure the given variable is correctly encoded """
-    # this will take in the given env var and decrypt it for use.
-    pass
+    app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
 
 
 def generate_code():
@@ -266,16 +262,3 @@ def generate_code():
     for x in range(0, 6):
         code += random.choice(selection)
     return code
-
-
-if __name__ == "__main__":
-    start = time.perf_counter()
-    print(md2_hash("password"))
-    end = time.perf_counter()
-    print("md2 time taken: ", end - start)
-    print()
-
-    start = time.perf_counter()
-    print(ug4_hash("password"))
-    end = time.perf_counter()
-    print("ug4 time taken: ", end - start)
