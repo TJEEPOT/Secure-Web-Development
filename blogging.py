@@ -22,13 +22,9 @@ import os
 previous_date = None
 
 
-def create_dir_if_not_exist():
+def get_file_location():
     if not os.path.isdir("logs/"):
         os.mkdir('logs/')
-
-
-def get_file_location():
-    create_dir_if_not_exist()
     base = "logs/"
     date = get_date()
     full_location = base + date + ".log"
@@ -66,10 +62,3 @@ def log_user_activity_unhappy(user_id: str, ip: str, activity: str):
     logging.warning(f'[User: {user_id}, {ip}, {activity}]')
 
 
-def log_this(log_me: str):
-    logging.info(log_me)
-
-
-if __name__ == '__main__':
-    log_user_activity_unhappy("0", "100.000.000.000", "oops")
-    log_user_activity_happy("0", "100.001.000.000", "yay")
