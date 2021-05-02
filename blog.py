@@ -29,6 +29,8 @@ import auth
 import blowfish
 import db
 import emailer
+import blogging
+
 
 app = Flask(__name__)
 host = "127.0.0.1"
@@ -271,12 +273,16 @@ def create_account():
     error_msg = db.add_user(name, email, username, password)
     if not error_msg:
         emailer.send_account_confirmation(email, name)
+        blogging.log_user_activity_happy(db.get_user_id_from_email(email), request.remote_addr,
+                                           "User create account success")
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
 
     if error_msg == 'Email exists':  # specific fail case for email existing
         code = auth.generate_code()
         inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
         if inserted:
+            blogging.log_user_activity_unhappy("None", request.remote_addr,
+                                               "User create account failure (existing account)")
             url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
             emailer.send_reset_link(email, url)
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
@@ -323,9 +329,13 @@ def reset():
 
     if inserted:
         # TODO is there a way to generate a link to a page with hostname and port from flask??
+        blogging.log_user_activity_happy(db.get_user_id_from_email(email), request.remote_addr,
+                                         "User reset stage1 (request) success")
         url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
         emailer.send_reset_link(email, url)
-
+    else:
+        blogging.log_user_activity_unhappy("None", request.remote_addr,
+                                         "User reset stage1 (request) failure")
     message = "If this address exists in our system we will send a reset request to you."
     flash(message)
     return render_template('auth/reset_request.html')
@@ -348,11 +358,18 @@ def enter_reset():
     if success:
         if within_time:
             token = db.insert_and_retrieve_reset_token(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+            blogging.log_user_activity_happy(db.get_user_id_from_email(email), request.remote_addr,
+                                             "User reset stage2 (code) success")
             return render_template('auth/reset_password.html', email=email, token=token)
         else:
+            blogging.log_user_activity_unhappy(db.get_user_id_from_email(email), request.remote_addr,
+                                             "User reset stage2 (code) failure (code expired)")
+
             message = "That code has expired please start a new reset request!"
         db.delete_reset_code(email)
     if within_time and (email or code):
+        blogging.log_user_activity_unhappy(db.get_user_id_from_email(email), request.remote_addr,
+                                           "User reset stage2 (code) failure (code invalid)")
         message = "Invalid email or reset code!"
     flash(message)
     return render_template('auth/enter_reset.html')
@@ -376,10 +393,14 @@ def reset_password():
             else:
                 password_changed = db.update_password_from_email(email, password)
                 if password_changed:
+                    blogging.log_user_activity_happy(db.get_user_id_from_email(email), request.remote_addr,
+                                                     "User reset stage3 (password) success")
                     message = "Your password has been changed! Please login again."
                     flash(message)
                     return redirect(url_for('login'))
         else:
+            blogging.log_user_activity_unhappy(db.get_user_id_from_email(email), request.remote_addr,
+                                             "User reset stage3 (password) failure (token)")
             message = "Something went wrong with your password reset. Please try again!"
             flash(message)
             return redirect(url_for('reset'))

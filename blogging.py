@@ -40,12 +40,16 @@ def get_date():
     return date.strftime('%Y-%m-%d')
 
 
-# TODO put logging into the request wrapper function as well as specific functions to be called
-
 def config_logger():
-    logging.basicConfig(filename=get_file_location(),
-                        format='%(asctime)s : %(levelname)s : %(message)s',
-                        level=logging.INFO)
+    try:
+        logging.basicConfig(filename=get_file_location(),
+                            format='%(asctime)s : %(levelname)s : %(message)s',
+                            level=logging.INFO)
+    except:
+        # incase something weird happens with the file system
+        logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
+                            level=logging.INFO)
+
     global previous_date
     previous_date = get_date()
 
