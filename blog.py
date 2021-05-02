@@ -117,8 +117,12 @@ def users_posts(uname=None):
     csrftoken = request.form.get('csrftoken')
     decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
     if decrypted != str(cid):
+        blogging.log_user_activity_unhappy(cid, request.remote_addr,
+                                           "Update details failure (invalid CSRF token)")
         error_msg = 'CSRF token invalid.'
     else:
+        blogging.log_user_activity_happy(cid, request.remote_addr,
+                                           "Update details success")
         error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
 
     if not error_msg:
@@ -146,6 +150,8 @@ def login():
         delta = datetime.timedelta(minutes=15)
 
         if (current_time - delta) <= lockout:
+            blogging.log_user_activity_unhappy("None", request.remote_addr,
+                                               "Login failure (IP locked out)")
             return redirect(url_for('login_fail', error='You are still locked out.'))
 
     email = request.form.get('email', '')
@@ -168,6 +174,8 @@ def login():
             session['nonce'] = blowfish.get_nonce()
             cipher = blowfish.decrypt(app.secret_key, session['nonce'], user_id)
             session['CSRFtoken'] = cipher
+            blogging.log_user_activity_happy(user_id, request.remote_addr,
+                                               "Login success")
         return redirect(url_for(url))
 
     # CS: Insert IP into db if it doesn't exist
@@ -180,6 +188,8 @@ def login():
     if login_attempts < 5:
         db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (login_attempts, ip_address))
         remaining_logins = 5 - login_attempts
+        blogging.log_user_activity_unhappy(user_id, request.remote_addr,
+                                           "Login failure (incorrect details)")
         return redirect(url_for('login_fail', error=f'Incorrect Login Details, {remaining_logins} attempts remaining.'))
 
     # CS: Check lockout time for this IP
@@ -190,10 +200,14 @@ def login():
     if lockout_time is None or (current_time - delta) <= lockout_time:
         # CS: Set lockout time to current time
         db.update_db('UPDATE loginattempts SET lockouttime =? WHERE ip =?', (current_time, ip_address))
+        blogging.log_user_activity_unhappy(user_id, request.remote_addr,
+                                           "Login lockout (too many attempts)")
         return redirect(url_for('login_fail', error='Too many login attempts. Login disabled for 15 minutes.'))
     else:
         # CS: Reset the attempts for this IP if it's been more than 15 mins
         db.update_db('UPDATE loginattempts SET attempts =? WHERE ip =?', (1, ip_address))
+        blogging.log_user_activity_unhappy(user_id, request.remote_addr,
+                                           "Login failure (incorrect details)")
         return redirect(url_for('login_fail', error='Incorrect Login Details, 4 attempts remaining.'))
 
 
@@ -210,6 +224,8 @@ def verify_code():
 
     # check if two-factor code has been given
     if not user_code:
+        blogging.log_user_activity_unhappy(uid, request.remote_addr,
+                                           "Two factor entry failure (code invalid)")
         return render_template('auth/two_factor.html', error='Code is invalid, please try again.')
 
     # find the two-factor code in the database for this user
@@ -218,6 +234,8 @@ def verify_code():
     # if we're out of time, kick them back to the login screen
     original_time = two_factor['timestamp']
     if not db.within_time_limit(original_time):
+        blogging.log_user_activity_unhappy(uid, request.remote_addr,
+                                           "Two factor entry failure (code expired)")
         return render_template('auth/login_fail.html', error='Code has expired. Please login again')
 
     # check the given code and fail them if it doesn't match
@@ -228,6 +246,8 @@ def verify_code():
         # if they're on the last attempt and got it wrong, kick them back to the login. Lockout too, perhaps?
         if attempts_remaining == 1:
             db.del_two_factor(uid)  # remove this 2fa from the db to prevent possible attacks
+            blogging.log_user_activity_unhappy(uid, request.remote_addr,
+                                               "Two factor entry failure (too many attempts)")
             return render_template('auth/login_fail.html', error='Too many failed attempts')
 
         db.tick_down_two_factor_attempts(uid)
@@ -240,6 +260,8 @@ def verify_code():
     session['nonce'] = blowfish.get_nonce()
     cipher = blowfish.decrypt(app.secret_key, session['nonce'], uid)
     session['CSRFtoken'] = cipher
+    blogging.log_user_activity_happy(uid, request.remote_addr,
+                                       "Two factor entry success")
     return redirect(url_for('index'))
 
 
@@ -308,11 +330,14 @@ def new_post():
     content = request.form.get('content')
     csrftoken = request.form.get('csrftoken')
     decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
-    error_msg = ''
     if decrypted != str(user_id):
+        blogging.log_user_activity_unhappy(user_id, request.remote_addr,
+                                           "User post failure (CSRF token invalid)")
         error_msg = 'CSRF token invalid.'
         flash(error_msg)
     else:
+        blogging.log_user_activity_happy(user_id, request.remote_addr,
+                                           "User post success")
         db.add_post(content, date, title, user_id)
     return redirect('/')
 
