@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% block login %}{% endblock %}
 {% block title %}Create Account{% endblock %}
 {% block content %}
     <h1>Create New Account</h1>
@@ -14,7 +13,5 @@
         <p><input type="submit" name="new_account" value="Create Account" /></p>
     </form>
     <br>
-    {% autoescape false %}
-        {{ msg }}
-    {% endautoescape %}
+    {{ msg|safe }}
 {% endblock %}

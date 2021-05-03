@@ -104,8 +104,6 @@ def users_posts(uname=None):
         return render_template('blog/user_posts.html', **context)
 
     cid = session['userid']
-    new_username = request.form.get('username', '')
-    new_email = request.form.get('email', '')
 
     new_usetwofactor = request.form.get('twofactor', 0)
     if new_usetwofactor == 'on':
@@ -113,24 +111,33 @@ def users_posts(uname=None):
     else:
         new_usetwofactor = 0
 
-    error_msg = None
     csrftoken = request.form.get('csrftoken')
     decrypted = blowfish.decrypt(app.secret_key, session['nonce'], csrftoken)
     if decrypted != str(cid):
-        blogging.log_user_activity_unhappy(cid, request.remote_addr,
-                                           "Update details failure (invalid CSRF token)")
-        error_msg = 'CSRF token invalid.'
-    else:
-        blogging.log_user_activity_happy(cid, request.remote_addr,
-                                           "Update details success")
-        error_msg = db.update_user(cid, new_username, new_email, new_usetwofactor)
+        blogging.log_user_activity_unhappy(cid, request.remote_addr, "Update details failure (invalid CSRF token)")
+        flash('CSRF token invalid.')
+        return redirect(url_for('users_posts', uname=session['username']))
 
-    if not error_msg:
-        session['username'] = new_username
-        return redirect(url_for('users_posts', uname=new_username))
+    # check for changes to username
+    username = session['username']
+    new_username = request.form.get('username', '')
+    if new_username != username:
+        if db.username_exists(new_username):
+            flash("Username already exists, please choose another")
+            return redirect(url_for('users_posts', uname=session['username']))
+        username = new_username
 
-    flash(error_msg)
-    return redirect(url_for('users_posts', uname=session['username']))
+    # try to add details to db
+    error = db.update_user(cid, username, new_usetwofactor)
+    if error:
+        flash(error)
+        return redirect(url_for('users_posts', uname=session['username']))
+
+    # success
+    blogging.log_user_activity_happy(cid, request.remote_addr, "Update details success")
+    session['username'] = new_username
+    flash("Settings successfully saved")
+    return redirect(url_for('users_posts', uname=new_username))
 
 
 @app.route('/login/', methods=['GET', 'POST'])
@@ -295,12 +302,15 @@ def create_account():
     password = request.form.get('password', '')
 
     error_msg = db.add_user(name, email, username, password)
+
+    # success case
     if not error_msg:
         emailer.send_account_confirmation(email, name)
         blogging.log_user_activity_happy(db.get_user_id_from_email(email), request.remote_addr,
                                            "User create account success")
         return render_template('auth/create_account.html', msg='Account created. Check your email for confirmation.')
 
+    # failure cases
     if error_msg == 'Email exists':  # specific fail case for email existing
         code = auth.generate_code()
         inserted = db.insert_reset_code(email, str(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')), code)
@@ -358,8 +368,7 @@ def reset():
         url = f"http://{host}:{port}{url_for('enter_reset')}?email={email}&code={code}"
         emailer.send_reset_link(email, url)
     else:
-        blogging.log_user_activity_unhappy("None", request.remote_addr,
-                                         "User reset stage1 (request) failure")
+        blogging.log_user_activity_unhappy("None", request.remote_addr, "User reset stage1 (request) failure")
     message = "If this address exists in our system we will send a reset request to you."
     flash(message)
     return render_template('auth/reset_request.html')
@@ -421,7 +430,9 @@ def reset_password():
                                                      "User reset stage3 (password) success")
                     message = "Your password has been changed! Please login again."
                     flash(message)
-                    return redirect(url_for('login'))
+                    return redirect(url_for('logout'))
+                else:
+                    flash(f"Invalid details: {email}, {password}")
         else:
             blogging.log_user_activity_unhappy(db.get_user_id_from_email(email), request.remote_addr,
                                              "User reset stage3 (password) failure (token)")

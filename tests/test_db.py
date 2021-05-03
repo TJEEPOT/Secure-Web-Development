@@ -105,9 +105,9 @@ class MyTestCase(unittest.TestCase):
 
     def test_update_user(self):
         with app.app_context():
-            error = db.update_user(0, "aking", "a.king@fakeemailservice.abcde", 0)
+            error = db.update_user(0, "bking", 0)
             self.assertIsNone(error)
-            db.update_user(0, "aking", "a.king@fakeemailservice.abcde", 1)
+            db.update_user(0, "aking", 1)
 
     def test_add_get_delete_post(self):
         with app.app_context():
