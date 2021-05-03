@@ -87,7 +87,6 @@ def validate_text(user_input: str, max_length=max_post_length):
 
 
 # basic parsing for approved markup using [<command>] format
-# TODO hook this up after all the merging with Martin's stuff
 def parse_markup(user_input: str):
     change_dict = {
         "[b]": "<b>",
