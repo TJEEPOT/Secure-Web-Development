@@ -16,7 +16,7 @@ __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
 __version__ = "1.3"
 __email__ = "gny17hvu@uea.ac.uk"
-__status__ = "Development"  # or "Production"
+__status__ = "Production"  # or "Development"
 
 import datetime
 import re
