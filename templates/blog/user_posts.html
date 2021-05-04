@@ -6,9 +6,7 @@
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 {% for message in messages %}
-                    {% autoescape false %}
-                        {{ message|safe }}
-                    {% endautoescape %}
+                    {{ message|safe }}
                 {% endfor %}
             {% endif %}
         {% endwith %}
@@ -26,13 +24,11 @@
             <form method="POST" action="/<uname>/">
                 <input type="checkbox" name="twofactor" {% if twofactor == 1 %}checked{% endif %}>
                 <label for="twofactor" style="width: inherit; margin-left: 5px;">Enable/disable two factor authentication</label>
-            <hr>
+                <hr>
                 <label for="username" style="width: inherit; margin-right: 5px;">Change Username:</label>
                 <input type="text" name="username" value="{{ uname|safe }}">
             <hr>
-                <label for="email" style="width: inherit; margin-right: 5px;">Change Email:</label>
-                <input type="text" name="email" value="{{ email|safe }}">
-            <hr>
+                <input type="hidden" name="email" id="email" maxlength="64" value="{{ email|safe }}">
                 <input type="hidden" name="csrftoken" value="{{ session.CSRFtoken }}" />
                 <input type="submit" value="Save">
             </form>

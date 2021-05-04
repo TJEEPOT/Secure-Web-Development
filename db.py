@@ -17,7 +17,7 @@ __copyright__ = "Copyright 2021, CMP-UG4"
 __credits__ = ["Martin Siddons", "Chris Sutton", "Sam Humphreys", "Steven Diep"]
 __version__ = "1.4"
 __email__ = "gny17hvu@uea.ac.uk"
-__status__ = "Development"  # or "Production"
+__status__ = "Production"  # or "Development"
 
 
 import os
@@ -157,15 +157,9 @@ def add_user(name, email, username, password):
     # email is encrypted in the DB so encrypt it
     encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
 
-    # check if the user exists
-    query = "SELECT userid FROM users WHERE email=?"
-    email_exists = query_db(query, (encrypted_email,))
-    query = "SELECT userid FROM users WHERE username=?"
-    username_exists = query_db(query, (valid_username,))
-
-    if username_exists:
+    if username_exists(valid_username):
         return 'Username already exists, please choose another.'  # does not require hiding since this is public info
-    if email_exists:
+    if email_exists(encrypted_email):
         finish_time = time.time()
         processing_time = finish_time - start_time
         time.sleep(max((1 - processing_time), 0))  # conceal if the user already exists
@@ -188,7 +182,20 @@ def add_user(name, email, username, password):
     return None
 
 
-def update_user(userid, username, email, usetwofactor):
+def username_exists(username):
+    valid_username = validation.validate_username(username)
+    query = "SELECT userid FROM users WHERE username=?"
+    exists = query_db(query, (valid_username,))
+    return False if not exists else True
+
+
+def email_exists(encrypted_email):
+    query = "SELECT userid FROM users WHERE email=?"
+    exists = query_db(query, (encrypted_email,))
+    return exists
+
+
+def update_user(userid, username, usetwofactor):
     """ Validates and updates user details into DB on successful validation.
      :return: error message or None if validation was successful
      :rtype str:
@@ -196,18 +203,13 @@ def update_user(userid, username, email, usetwofactor):
     start_time = time.time()
 
     # validate the entered form details
-    valid_email = validation.validate_email(email)
     valid_username = validation.validate_username(username)
 
-    if not valid_email:
-        return 'Email validation failed.'
     if not valid_username:
-        return 'Username validation failed.'
+        return 'Username validation failed, please use another username'
 
-    encrypted_email = blowfish.encrypt(DBK, DBN, valid_email)
-
-    query = "UPDATE users SET username = ?, email = ?, usetwofactor = ? WHERE userid = ?"
-    update_db(query, (valid_username, encrypted_email, usetwofactor, userid))
+    query = "UPDATE users SET username = ?, usetwofactor = ? WHERE userid = ?"
+    update_db(query, (valid_username, usetwofactor, userid))
 
     finish_time = time.time()
     processing_time = finish_time - start_time
@@ -216,8 +218,8 @@ def update_user(userid, username, email, usetwofactor):
 
 
 def get_all_posts():
-    return query_db('SELECT posts.creator,posts.date,posts.title,posts.content,users.username FROM posts '
-                    'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 10')
+    return query_db('SELECT posts.creator, posts.date, posts.title, posts.content, users.username FROM posts '
+                    'JOIN users ON posts.creator=users.userid ORDER BY date DESC LIMIT 20')
 
 
 def get_posts(cid):
@@ -395,7 +397,7 @@ def update_password_from_email(email: str, password: str):
     valid_password = validation.validate_password(password)
     userid = get_user_id_from_email(valid_email)
 
-    ret = False
+    success = False
     if userid is not None and valid_password is not None:
         first_query = "SELECT salt FROM users WHERE userid=?"
         salt = query_db(first_query, (userid,), one=True)
@@ -403,9 +405,9 @@ def update_password_from_email(email: str, password: str):
         valid_password = auth.ug4_hash(valid_password + salt + PEPPER)
         query = "UPDATE users SET password =? WHERE userid =?"
         update_db(query, (valid_password, userid))
-        ret = True
+        success = True
 
-    return ret
+    return success
 
 
 # if we're out of time, kick them back to the login screen
